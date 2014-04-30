@@ -4,6 +4,7 @@
 .settings/
 bin/
 tmp/
+obj/
 
 # Intellij
 .idea/
