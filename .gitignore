@@ -1,0 +1,20 @@
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+tmp/
+
+# Intellij
+.idea/
+*.iml
+*.iws
+gen/
+out/
+
+# Mac
+.DS_Store
+
+# Maven
+log/
+target/
