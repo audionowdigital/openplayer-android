@@ -46,6 +46,13 @@ public class FileDecodeFeed implements DecodeFeed {
      * The file to decode ogg/vorbis data from
      */
     private final File fileToDecode;
+    
+    /**
+     * Player related data
+     */
+    DecodeStreamInfo streamInfo;
+    
+    long readSize;
 
     /**
      * Creates a decode feed that reads from a file and writes to an {@link AudioTrack}
@@ -62,8 +69,8 @@ public class FileDecodeFeed implements DecodeFeed {
     }
 
     @Override
-    public synchronized int onReadVorbisData(byte[] buffer, int amountToWrite) {
-    	Log.d(TAG, "readVorbisData " + amountToWrite + " state:"+playerState.get());
+    public synchronized int onReadVorbisData(byte[] buffer, int amountToRead) {
+    	Log.d(TAG, "readVorbisData " + amountToRead + " state:"+playerState.get());
         //If the player is not playing or reading the header, return 0 to end the native decode method
         if (playerState.get() == PlayerStates.STOPPED) {
             return 0;
@@ -71,7 +78,9 @@ public class FileDecodeFeed implements DecodeFeed {
 
         //Otherwise read from the file
         try {
-            int read = inputStream.read(buffer, 0, amountToWrite);
+            int read = inputStream.read(buffer, 0, amountToRead);
+            readSize += read;
+            Log.d(TAG, "Read...so far:" + readSize);
             return read == -1 ? 0 : read;
         } catch (IOException e) {
             //There was a problem reading from the file
@@ -82,11 +91,11 @@ public class FileDecodeFeed implements DecodeFeed {
     }
 
     @Override
-    public synchronized void onWritePCMData(short[] pcmData, int amountToRead) {
-    	Log.d(TAG, "writePCMData call:" + amountToRead);
+    public synchronized void onWritePCMData(short[] pcmData, int amountToWrite) {
+    	Log.d(TAG, "writePCMData call:" + amountToWrite);
         //If we received data and are playing, write to the audio track
-        if (pcmData != null && amountToRead > 0 && audioTrack != null && playerState.isPlaying()) {
-            audioTrack.write(pcmData, 0, amountToRead);
+        if (pcmData != null && amountToWrite > 0 && audioTrack != null && playerState.isPlaying()) {
+            audioTrack.write(pcmData, 0, amountToWrite);
         }
     }
 
@@ -143,6 +152,9 @@ public class FileDecodeFeed implements DecodeFeed {
 
         //We're starting to read actual content
         playerState.set(PlayerStates.PLAYING);
+        
+        // Save decoder info:
+        streamInfo = decodeStreamInfo;
     }
 
     @Override
