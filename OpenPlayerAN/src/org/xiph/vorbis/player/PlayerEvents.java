@@ -11,18 +11,23 @@ public class PlayerEvents {
     /**
      * Playing finished handler message
      */
-    public static final int PLAYING_FINISHED = 46314;
+    public static final int PLAYING_FINISHED = 1001;
 
     /**
      * Playing failed handler message
      */
-    public static final int PLAYING_FAILED = 46315;
+    public static final int PLAYING_FAILED = 1002;
 
     /**
-     * Playing started handler message
+     * Started to read the stream
      */
-    public static final int PLAYING_STARTED = 46316;
+    public static final int READING_HEADER = 1003;
 
+    /**
+     * Header was received, we are ready to play
+     */
+    public static final int READY_TO_PLAY = 1004;
+    
     /**
      * Handler for sending status updates
      */

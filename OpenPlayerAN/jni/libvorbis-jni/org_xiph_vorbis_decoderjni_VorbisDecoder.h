@@ -12,24 +12,29 @@
 	extern "C" {
 	#endif
 
+	// called to do the initialization
+	JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_initJni(JNIEnv *env, jclass cls, jobject vorbisDataFeed);
+
 	//Starts the decoding from a vorbis bitstream to pcm
-	JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_startDecoding
-	  (JNIEnv *env, jclass cls, jobject vorbisDataFeed);
+	JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls);
 
 	//Stops the vorbis data feed
-	void stopDecodeFeed(JNIEnv *env, jobject* vorbisDataFeed, jmethodID* stopMethodId);
+	void onStopDecodeFeed(JNIEnv *env, jobject* vorbisDataFeed, jmethodID* stopMethodId);
 
 	//Reads raw vorbis data from the jni callback
-	int readVorbisDataFromVorbisDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jmethodID* readVorbisDataMethodId, char* buffer, jbyteArray* jByteArrayReadBuffer);
+	int onReadVorbisDataFromVorbisDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jmethodID* readVorbisDataMethodId, char* buffer, jbyteArray* jByteArrayReadBuffer);
 
 	//Writes the pcm data to the Java layer
-	void writePCMDataFromVorbisDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jmethodID* writePCMDataMethodId, ogg_int16_t* buffer, int bytes, jshortArray* jShortArrayWriteBuffer);
+	void onWritePCMDataFromVorbisDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jmethodID* writePCMDataMethodId, ogg_int16_t* buffer, int bytes, jshortArray* jShortArrayWriteBuffer);
 
 	//Starts the decode feed with the necessary information about sample rates, channels, etc about the stream
-	void start(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor);
+	void onStart(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor);
 
 	//Starts reading the header information
-	void startReadingHeader(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startReadingHeaderMethodId);
+	void onStartReadingHeader(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startReadingHeaderMethodId);
+
+	//Inform player we are about to start a new iteration
+	void onNewIteration(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* newIterationMethodId);
 
 	#ifdef __cplusplus
 	}

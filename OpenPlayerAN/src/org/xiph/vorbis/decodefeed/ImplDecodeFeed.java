@@ -54,18 +54,34 @@ public class ImplDecodeFeed implements DecodeFeed {
      *
      * @param streamToDecode the stream to decode
      */
-    public ImplDecodeFeed() {}
     
-    public void Init(InputStream streamToDecode, long bufferSize, PlayerStates playerState, PlayerEvents events) {
+    public ImplDecodeFeed(PlayerStates playerState, PlayerEvents events) {
+    	this.playerState = playerState;
+        this.events = events;
+	}
+
+    
+    public void setData(InputStream streamToDecode, long bufferSize) {
     	if (streamToDecode == null) {
             throw new IllegalArgumentException("Stream to decode must not be null.");
         }
-        this.playerState = playerState;
-        this.events = events;
     	this.inputStream = streamToDecode;
         this.bufferSize = bufferSize;
     }
 
+    public synchronized void waitPlay(){
+        while(playerState.get() == PlayerStates.READY_TO_PLAY){
+            try {
+                wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    public synchronized void syncNotify() {
+    	notify();
+    }
+    
     @Override
     public int onReadVorbisData(byte[] buffer, int amountToWrite) {
     	Log.d(TAG, "readVorbisData call: " + amountToWrite);
@@ -73,12 +89,12 @@ public class ImplDecodeFeed implements DecodeFeed {
         if (playerState.get() == PlayerStates.STOPPED) {
             return 0;
         }
+        
+        waitPlay();
 
         //Otherwise read from the file
         try {
-            Log.d(TAG, "Reading...");
             int read = inputStream.read(buffer, 0, amountToWrite);
-            Log.d(TAG, "Read...");
             return read == -1 ? 0 : read;
         } catch (IOException e) {
             //There was a problem reading from the file
@@ -87,23 +103,10 @@ public class ImplDecodeFeed implements DecodeFeed {
         }
     }
 
-   /* @Override
-    public void writePCMData(short[] pcmData, int amountToRead) {
-    	Log.d(TAG, "writePCMData call: " + amountToRead);
-        //If we received data and are playing, write to the audio track
-        Log.d(TAG, "Writing data to track");
-        if (pcmData != null && amountToRead > 0 && audioTrack != null && (playerState.isPlaying() || playerState.isBuffering())) {
-            audioTrack.write(pcmData, 0, amountToRead);
-            writtenPCMData += amountToRead;
-            if (writtenPCMData >= bufferSize) {
-                audioTrack.play();
-                playerState.set(PlayerStates.PLAYING);
-            }
-        }
-    }
-    */
     @Override
     public synchronized void onWritePCMData(short[] pcmData, int amountToRead) {
+		waitPlay();
+		
         //If we received data and are playing, write to the audio track
         if (pcmData != null && amountToRead > 0 && audioTrack != null && playerState.isPlaying()) {
             audioTrack.write(pcmData, 0, amountToRead);
@@ -111,13 +114,9 @@ public class ImplDecodeFeed implements DecodeFeed {
     }
 
     @Override
-    public void onStop() {
+    public synchronized void onStop() {
         if (!playerState.isStopped()) {
-            //If we were in a state of buffering before we actually started playing, start playing and write some silence to the track
-            if (playerState.get() == PlayerStates.BUFFERING) {
-                audioTrack.play();
-                audioTrack.write(new byte[20000], 0, 20000);
-            }
+           
 
             //Closes the file input stream
             if (inputStream != null) {
@@ -158,18 +157,26 @@ public class ImplDecodeFeed implements DecodeFeed {
         int minSize = AudioTrack.getMinBufferSize((int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT);
         audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, (int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
         audioTrack.play();
+        
+        events.sendEvent(PlayerEvents.READY_TO_PLAY);
 
-        //We're starting to read actual content
-        //playerState.set(PlayerStates.BUFFERING);
-        playerState.set(PlayerStates.PLAYING); //for file
+        //We're ready to starting to read actual content
+        playerState.set(PlayerStates.READY_TO_PLAY); 
     }
 
     @Override
     public void onStartReadingHeader() {
         if (playerState.isStopped()) {
-        	events.sendEvent(PlayerEvents.PLAYING_STARTED);
+        	events.sendEvent(PlayerEvents.READING_HEADER);
             playerState.set(PlayerStates.READING_HEADER);
         }
     }
+
+
+	@Override
+	public void onNewIteration() {
+		Log.d(TAG, "onNewIteration");
+		
+	}
 
 }

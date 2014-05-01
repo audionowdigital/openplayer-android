@@ -67,9 +67,14 @@ public interface DecodeFeed {
     public void onStartReadingHeader();
 
     /**
-     * To be called when decoding has started
+     * To be called when reading header is complete and we are ready to play the stream. decoding has started
      *
      * @param decodeStreamInfo the stream information of what's about to be played
      */
     public void onStart(DecodeStreamInfo decodeStreamInfo);
+    
+    /**
+     * To be called from JNI when starting a new loop , useful to control pause
+     */
+    public void onNewIteration();
 }

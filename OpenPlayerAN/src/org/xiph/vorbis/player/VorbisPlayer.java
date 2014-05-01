@@ -1,27 +1,15 @@
 package org.xiph.vorbis.player;
 
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioTrack;
-import android.os.*;
-import android.os.Process;
-import android.util.Log;
+import java.io.InputStream;
 
-import org.xiph.vorbis.decodefeed.BufferedDecodeFeed;
-import org.xiph.vorbis.decodefeed.FileDecodeFeed;
+import org.xiph.vorbis.decodefeed.ImplDecodeFeed;
 import org.xiph.vorbis.decoderjni.DecodeFeed;
-import org.xiph.vorbis.decoderjni.DecodeStreamInfo;
 import org.xiph.vorbis.decoderjni.VorbisDecoder;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.concurrent.atomic.AtomicReference;
+import android.media.AudioTrack;
+import android.os.Handler;
+import android.os.Process;
+import android.util.Log;
 
 /**
  * The VorbisPlayer is responsible for decoding a vorbis bitsream into raw PCM data to play to an {@link AudioTrack}
@@ -37,7 +25,7 @@ public class VorbisPlayer implements Runnable {
     /**
      * The decode feed to read and write pcm/vorbis data respectively
      */
-    private final DecodeFeed decodeFeed;
+    private final ImplDecodeFeed decodeFeed;
 
     /**
      * Current state of the vorbis player
@@ -49,89 +37,73 @@ public class VorbisPlayer implements Runnable {
      */
     private PlayerEvents events = null;
 
-   
-
-    /**
-     * Constructs a new instance of the player with default parameters other than it will decode from a file
-     *
-     * @param fileToPlay the file to play
-     * @param handler    handler to send player status updates to
-     * @throws FileNotFoundException thrown if the file could not be located/opened to playing
-     */
-    public VorbisPlayer(File fileToPlay, Handler handler) throws FileNotFoundException {
-        if (fileToPlay == null) {
-            throw new IllegalArgumentException("File to play must not be null.");
-        }
-        if (handler == null) {
-            throw new IllegalArgumentException("Handler must not be null.");
-        }
-        Log.d(TAG, "new VorbisPlayer");
-        events = new PlayerEvents(handler);
-        this.decodeFeed = new FileDecodeFeed(fileToPlay, playerState, events);
-    }
-
-    /**
-     * Constructs a player that will read from an {@link InputStream} and write to an {@link AudioTrack}
-     *
-     * @param audioDataStream the audio data stream to read from
-     * @param handler         handler to send player status updates to
-     */
-    public VorbisPlayer(InputStream audioDataStream, Handler handler) {
-        if (audioDataStream == null) {
-            throw new IllegalArgumentException("Input stream must not be null.");
-        }
-        if (handler == null) {
-            throw new IllegalArgumentException("Handler must not be null.");
-        }
-        events = new PlayerEvents(handler);
-        this.decodeFeed = new BufferedDecodeFeed(audioDataStream, 24000, playerState, events);
     
-    }
 
+    public VorbisPlayer(Handler handler) {
+    	 if (handler == null) {
+             throw new IllegalArgumentException("Handler must not be null.");
+         }
+    	 events = new PlayerEvents(handler);
+    	 this.decodeFeed = new ImplDecodeFeed(playerState, events);
+    	 
+    	 // pass the DecodeFeed interface to the native JNI layer, we will get all calls there
+    	 int result = VorbisDecoder.initJni(decodeFeed);
+    }
     
     /**
-     * Constructs a player with a custom {@link DecodeFeed}
-     *
-     * @param decodeFeed the custom decode feed
-     * @param handler    handler to send player status updates to
+     * Set an input stream as data source and starts reading from it
+     * @param streamToDecode the stream to read from 
+     * @param bufferSize size of buffer
      */
-    public VorbisPlayer(DecodeFeed decodeFeed, Handler handler) {
-        if (decodeFeed == null) {
-            throw new IllegalArgumentException("Decode feed must not be null.");
-        }
-        if (handler == null) {
-            throw new IllegalArgumentException("Handler must not be null.");
-        }
-        this.decodeFeed = decodeFeed;
-        events = new PlayerEvents(handler);
+    public void setDataSource(InputStream streamToDecode, long bufferSize) {
+    	// set an input stream as data source
+    	decodeFeed.setData(streamToDecode, bufferSize);
+    	// start the thread, will go directly to "run" method
+    	new Thread(this).start();
     }
 
-    /**
-     * Starts the audio recorder with a given sample rate and channels
-     */
-    @SuppressWarnings("all")
-    public synchronized void start() {
-        if (isStopped()) {
-        	Log.d(TAG, "Starting new player thread state:" + playerState.get());
-            new Thread(this).start();
-        } else {
-        	Log.d(TAG, "Not creating new thread.");
-        }
-    }
 
+
+    public void Play() {
+    	if (playerState.get() != PlayerStates.READY_TO_PLAY) {
+            throw new IllegalStateException("Must be ready first!");
+        }
+    	playerState.set(PlayerStates.PLAYING);
+    	// make sure the thread gets unlocked
+    	decodeFeed.syncNotify();
+    }
+    
+    public void Pause() {
+    	if (playerState.get() != PlayerStates.PLAYING) {
+            throw new IllegalStateException("Must be playing first!");
+        }
+    	playerState.set(PlayerStates.READY_TO_PLAY);
+    	// make sure the thread gets locked
+    	decodeFeed.syncNotify();
+    }
+    
     /**
      * Stops the player and notifies the decode feed
      */
-    public synchronized void stop() {
+    public synchronized void Stop() {
         decodeFeed.onStop();
+        // make sure the thread gets unlocked
+    	//decodeFeed.syncNotify();
     }
+    
 
     @Override
     public void run() {
     	Log.e(TAG, "Start the native decoder");
         //Start the native decoder: VORBIS
         android.os.Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
-        int result = VorbisDecoder.startDecoding(decodeFeed);
+        
+        
+        int result = VorbisDecoder.readDecodeWriteLoop();
+        
+
+     
+        
         Log.e(TAG, "Result: " + result);
         switch (result) {
             case DecodeFeed.SUCCESS:
@@ -175,6 +147,15 @@ public class VorbisPlayer implements Runnable {
     }
 
     /**
+     * Checks whether the player is ready to play, this is the state used also for Pause
+     *
+     * @return <code>true</code> if ready, <code>false</code> otherwise
+     */
+    public synchronized boolean isReadyToPlay() {
+        return playerState.isReadyToPlay();
+    }
+    
+    /**
      * Checks whether the player is currently stopped (not playing)
      *
      * @return <code>true</code> if playing, <code>false</code> otherwise
@@ -192,13 +173,5 @@ public class VorbisPlayer implements Runnable {
         return playerState.isReadingHeader();
     }
 
-    /**
-     * Checks whether the player is currently buffering
-     *
-     * @return <code>true</code> if buffering, <code>false</code> otherwise
-     */
-    public synchronized boolean isBuffering() {
-        return playerState.isBuffering();
-    }
    
 }
