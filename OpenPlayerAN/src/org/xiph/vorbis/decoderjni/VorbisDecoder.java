@@ -20,7 +20,7 @@ public class VorbisDecoder {
      * @param decodeFeed the custom decode feed
      * @return the result code
      */
-    public static native int initJni(DecodeFeed decodeFeed);
+    public static native int initJni(int debug);
     
-    public static native int readDecodeWriteLoop();
+    public static native int readDecodeWriteLoop(DecodeFeed decodeFeed);
 }

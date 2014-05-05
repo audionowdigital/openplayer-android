@@ -47,7 +47,7 @@ public class VorbisPlayer implements Runnable {
     	 this.decodeFeed = new ImplDecodeFeed(playerState, events);
     	 
     	 // pass the DecodeFeed interface to the native JNI layer, we will get all calls there
-    	 int result = VorbisDecoder.initJni(decodeFeed);
+    	 int result = VorbisDecoder.initJni( 0);
     }
     
     /**
@@ -55,9 +55,9 @@ public class VorbisPlayer implements Runnable {
      * @param streamToDecode the stream to read from 
      * @param bufferSize size of buffer
      */
-    public void setDataSource(InputStream streamToDecode, long bufferSize) {
+    public void setDataSource(InputStream streamToDecode) {
     	// set an input stream as data source
-    	decodeFeed.setData(streamToDecode, bufferSize);
+    	decodeFeed.setData(streamToDecode);
     	// start the thread, will go directly to "run" method
     	new Thread(this).start();
     }
@@ -98,12 +98,8 @@ public class VorbisPlayer implements Runnable {
         //Start the native decoder: VORBIS
         android.os.Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
         
-        
-        int result = VorbisDecoder.readDecodeWriteLoop();
-        
-
-     
-        
+        int result = VorbisDecoder.readDecodeWriteLoop(decodeFeed);
+                
         Log.e(TAG, "Result: " + result);
         switch (result) {
             case DecodeFeed.SUCCESS:

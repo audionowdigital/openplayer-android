@@ -1,9 +1,5 @@
 package org.xiph.vorbis.player;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-
-
 import android.os.Handler;
 
 
@@ -27,6 +23,12 @@ public class PlayerEvents {
      * Header was received, we are ready to play
      */
     public static final int READY_TO_PLAY = 1004;
+    
+    /**
+     * Progress indicator, sent out periodically when playing
+     */
+    public static int PLAY_UPDATE = 1005;
+    
     
     /**
      * Handler for sending status updates

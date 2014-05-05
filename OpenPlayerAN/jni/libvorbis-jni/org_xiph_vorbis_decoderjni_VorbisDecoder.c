@@ -17,12 +17,14 @@ to end. */
 
 extern void _VDBG_dump(void);
 
+int debug = 0;
+
 #define LOG_TAG "jniVorbisDecoder"
-#define LOGD(LOG_TAG, ...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG,__VA_ARGS__)
-#define LOGV(LOG_TAG, ...) __android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG, __VA_ARGS__)
-#define LOGE(LOG_TAG, ...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,__VA_ARGS__)
-#define LOGW(LOG_TAG, ...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG,__VA_ARGS__)
-#define LOGI(LOG_TAG, ...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG,__VA_ARGS__)
+#define LOGD(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG,__VA_ARGS__)
+#define LOGV(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG, __VA_ARGS__)
+#define LOGE(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,__VA_ARGS__)
+#define LOGW(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_WARN, LOG_TAG,__VA_ARGS__)
+#define LOGI(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_INFO, LOG_TAG,__VA_ARGS__)
 
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
   LOGD(LOG_TAG, "onLoad called.");
@@ -71,6 +73,9 @@ void onWritePCMDataFromVorbisDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jmet
     (*env)->CallVoidMethod(env, (*vorbisDataFeed), (*writePCMDataMethodId), (*jShortArrayWriteBuffer), bytes);
 }
 
+//jclass 	//decodeStreamInfoClass,
+	//	vorbisDataFeedClass;
+
 //Starts the decode feed with the necessary information about sample rates, channels, etc about the stream
 void onStart(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor) {
     LOGI(LOG_TAG, "Notifying decode feed");
@@ -79,7 +84,11 @@ void onStart(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, lon
     jstring vendorString = (*env)->NewStringUTF(env, vendor);
 
     //Get decode stream info class and constructor
+
+    //jclass tmp = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeStreamInfo");
+    //decodeStreamInfoClass = (jclass)(*env)->NewGlobalRef(env, tmp);
     jclass decodeStreamInfoClass = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeStreamInfo");
+
     jmethodID constructor = (*env)->GetMethodID(env, decodeStreamInfoClass, "<init>", "(JJLjava/lang/String;)V");
 
     //Create the decode stream info object
@@ -115,11 +124,20 @@ jobject vorbisDataFeed;
 jmethodID readVorbisDataMethodId, writePCMDataMethodId, startMethodId, startReadingHeaderMethodId, stopMethodId, newIterationMethodId;
 
 //onStartReadingHeader(env, &vorbisDataFeed, &startReadingHeaderMethodId);
-JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_initJni(JNIEnv *env, jclass cls, jobject vorbisDataFeed0) {
+JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_initJni(JNIEnv *env, jclass cls, int debug0) {
+	debug = debug0;
 	LOGI(LOG_TAG, "initJni called, initing methods");
+/*
 	//Find our java classes we'll be calling
-	jclass vorbisDataFeedClass = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
+	jclass tmp = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
+	vorbisDataFeedClass = (jclass)(*env)->NewGlobalRef(env, tmp);
+
+
+	//Find our java classes we'll be calling
+	//jclass vorbisDataFeedClass = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
+
 	vorbisDataFeed = vorbisDataFeed0;
+
 	//Find our java method id's we'll be calling
 	readVorbisDataMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onReadVorbisData", "([BI)I");
 	writePCMDataMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onWritePCMData", "([SI)V");
@@ -127,9 +145,10 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_initJni(JNIE
 	startReadingHeaderMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStartReadingHeader", "()V");
 	stopMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStop", "()V");
 	newIterationMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onNewIteration", "()V");
+	*/
 }
 
-JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls) {
+JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls, jobject vorbisDataFeed) {
 	LOGI(LOG_TAG, "startDecoding called, initing buffers");
 
     //Create a new java byte array to pass to the vorbis data feed method
@@ -137,7 +156,18 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
 
     //Create our write buffer
     jshortArray jShortArrayWriteBuffer = (*env)->NewShortArray(env, BUFFER_LENGTH*2);
+//--
+    	jclass vorbisDataFeedClass = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
 
+
+    	//Find our java method id's we'll be calling
+    	readVorbisDataMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onReadVorbisData", "([BI)I");
+    	writePCMDataMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onWritePCMData", "([SI)V");
+    	startMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStart", "(Lorg/xiph/vorbis/decoderjni/DecodeStreamInfo;)V");
+    	startReadingHeaderMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStartReadingHeader", "()V");
+    	stopMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStop", "()V");
+    	newIterationMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onNewIteration", "()V");
+    //--
     ogg_int16_t convbuffer[BUFFER_LENGTH]; /* take 8k out of the data segment, not the stack */
     int convsize=BUFFER_LENGTH;
     

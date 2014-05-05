@@ -5,21 +5,13 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
-import android.text.method.ScrollingMovementMethod;
-import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
-import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
-
 import org.xiph.vorbis.player.PlayerEvents;
-import org.xiph.vorbis.player.PlayerStates;
 import org.xiph.vorbis.player.VorbisPlayer;
 
 import java.io.BufferedInputStream;
@@ -54,7 +46,7 @@ public class MainActivity extends Activity {
         setContentView(panelV);
         
         logArea = new TextView(this);
-        logArea.setText("Welcome to OPENPlayer v 1.0.100  Press Init->Play");
+        logArea.setText("Welcome to OPENPlayer v 1.0.101  Press Init->Play");
         panelV.addView(logArea);
         
         Button b = new Button(this);
@@ -63,8 +55,7 @@ public class MainActivity extends Activity {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
 				// TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
-				vorbisPlayer.setDataSource(getStreamLocalFile("test.ogg"),//test-katie.ogg");
-						24000);
+				vorbisPlayer.setDataSource(getStreamLocalFile("test.ogg"));//test-katie.ogg");
 		    }
 		});
         panelV.addView(b);
@@ -79,11 +70,10 @@ public class MainActivity extends Activity {
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
-				 //String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
-		    	//String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
+				// String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
+		    	// String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
 		        // TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
-				vorbisPlayer.setDataSource(getStreamURL(et.getEditableText().toString()),
-						24000);
+				vorbisPlayer.setDataSource(getStreamURL(et.getEditableText().toString()));
 		    }
 		});
         panelV.addView(b);
@@ -93,7 +83,7 @@ public class MainActivity extends Activity {
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
 				if (vorbisPlayer != null && vorbisPlayer.isReadyToPlay()) {
-					logArea.setText("Playing...");
+					logArea.setText("Playing... ");
 					vorbisPlayer.Play();
 		        } else 
 		        	logArea.setText("Player not initialized or not ready to play");

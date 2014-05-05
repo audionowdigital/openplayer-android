@@ -35,11 +35,6 @@ public class ImplDecodeFeed implements DecodeFeed {
     protected AudioTrack audioTrack;
 
     /**
-     * The initial buffer size
-     */
-    protected long bufferSize = 0;
-
-    /**
      * The input stream to decode from
      */
     protected InputStream inputStream;
@@ -49,6 +44,11 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     protected long writtenPCMData = 0;
 
+    /**
+     * Stream info as reported in the header 
+     */
+    DecodeStreamInfo streamInfo;
+    
     /**
      * Creates a decode feed that reads from a file and writes to an {@link AudioTrack}
      *
@@ -61,16 +61,18 @@ public class ImplDecodeFeed implements DecodeFeed {
 	}
 
     
-    public void setData(InputStream streamToDecode, long bufferSize) {
+    public void setData(InputStream streamToDecode) {
     	if (streamToDecode == null) {
             throw new IllegalArgumentException("Stream to decode must not be null.");
         }
     	this.inputStream = streamToDecode;
-        this.bufferSize = bufferSize;
     }
 
+    /**
+     * A pause mechanism that would block current thread when pause flag is set (READY_TO_PLAY)
+     */
     public synchronized void waitPlay(){
-        while(playerState.get() == PlayerStates.READY_TO_PLAY){
+        while(playerState.get() == PlayerStates.READY_TO_PLAY) {
             try {
                 wait();
             } catch (InterruptedException e) {
@@ -78,6 +80,7 @@ public class ImplDecodeFeed implements DecodeFeed {
             }
         }
     }
+    
     public synchronized void syncNotify() {
     	notify();
     }
@@ -104,20 +107,22 @@ public class ImplDecodeFeed implements DecodeFeed {
     }
 
     @Override
-    public synchronized void onWritePCMData(short[] pcmData, int amountToRead) {
+    public synchronized void onWritePCMData(short[] pcmData, int amountToWrite) {
 		waitPlay();
 		
         //If we received data and are playing, write to the audio track
-        if (pcmData != null && amountToRead > 0 && audioTrack != null && playerState.isPlaying()) {
-            audioTrack.write(pcmData, 0, amountToRead);
+        if (pcmData != null && amountToWrite > 0 && audioTrack != null && playerState.isPlaying()) {
+            audioTrack.write(pcmData, 0, amountToWrite);
+            
+            // at this point we know all stream parameters, including the sampleRate, use it to compute current time.
+            Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() + 
+            		" time:" + convertBytesToMs(amountToWrite));
         }
     }
 
     @Override
     public synchronized void onStop() {
         if (!playerState.isStopped()) {
-           
-
             //Closes the file input stream
             if (inputStream != null) {
                 try {
@@ -151,7 +156,9 @@ public class ImplDecodeFeed implements DecodeFeed {
         if (decodeStreamInfo.getSampleRate() <= 0) {
             throw new IllegalArgumentException("Invalid sample rate, must be above 0");
         }
-
+        
+        streamInfo = decodeStreamInfo;
+        
         //Create the audio track
         int channelConfiguration = decodeStreamInfo.getChannels() == 1 ? AudioFormat.CHANNEL_OUT_MONO : AudioFormat.CHANNEL_OUT_STEREO;
         int minSize = AudioTrack.getMinBufferSize((int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT);
@@ -172,11 +179,52 @@ public class ImplDecodeFeed implements DecodeFeed {
         }
     }
 
-
 	@Override
 	public void onNewIteration() {
 		Log.d(TAG, "onNewIteration");
-		
 	}
+	
+	/**
+	 * returns the number of bytes used by a buffer of given mili seconds, sample rate and channels
+	 * we multiply by 2 to compensate for the 'short' size
+	 */
+	public static int convertMsToBytes(int ms, long sampleRate, long channels ) {
+        return (int)(((long) ms) * sampleRate * channels / 1000) * 2; 
+    }
+	public int converMsToBytes(int ms) {
+		return convertMsToBytes(ms, streamInfo.getSampleRate(), streamInfo.getChannels());
+	}
+	
+	/**
+     * returns the number of samples needed to hold a buffer of given mili seconds, sample rate and channels
+     */
+    public static int convertMsToSamples( int ms, long sampleRate, long channels ) {
+        return (int)(((long) ms) * sampleRate * channels / 1000);
+    }
+    public int convertMsToSamples(int ms) {
+        return convertMsToSamples(ms, streamInfo.getSampleRate(), streamInfo.getChannels());
+    }
 
+    /**
+     * converts bytes of buffer to mili seconds
+     * we divide by 2 to compensate for the 'short' size
+     */
+    public static int convertBytesToMs( int bytes, long sampleRate, long channels ) {
+        return (int)(1000L * bytes / (sampleRate * channels)) / 2;
+    }
+    public int convertBytesToMs( int bytes) {
+        return convertBytesToMs(bytes, streamInfo.getSampleRate(), streamInfo.getChannels());
+    }
+
+    /**
+     * Converts samples of buffer to milliseconds.
+     * @param samples the size of the buffer in samples (all channels)
+     * @return the time in milliseconds
+     */
+    public static int convertSamplesToMs( int samples, long sampleRate, long channels ) {
+        return (int)(1000L * samples / (sampleRate * channels));
+    }
+    public int convertSamplesToMs( int samples) {
+        return convertSamplesToMs(samples, streamInfo.getSampleRate(), streamInfo.getChannels());
+    }
 }
