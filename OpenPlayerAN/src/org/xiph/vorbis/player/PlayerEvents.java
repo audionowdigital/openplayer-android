@@ -1,6 +1,7 @@
 package org.xiph.vorbis.player;
 
 import android.os.Handler;
+import android.os.Message;
 
 
 public class PlayerEvents {
@@ -27,7 +28,7 @@ public class PlayerEvents {
     /**
      * Progress indicator, sent out periodically when playing
      */
-    public static int PLAY_UPDATE = 1005;
+    public static final int PLAY_UPDATE = 1005;
     
     
     /**
@@ -51,4 +52,10 @@ public class PlayerEvents {
     	handler.sendEmptyMessage(event);
     }
     
+    public void sendEvent(int event, int param) {
+    	Message msg = new Message();
+    	msg.arg1 = param;
+    	msg.what = event;
+    	handler.sendMessage(msg);
+    } 
 }

@@ -5,6 +5,7 @@ import java.io.InputStream;
 
 import org.xiph.vorbis.decoderjni.DecodeFeed;
 import org.xiph.vorbis.decoderjni.DecodeStreamInfo;
+import org.xiph.vorbis.decoderjni.VorbisDecoder;
 import org.xiph.vorbis.player.PlayerEvents;
 import org.xiph.vorbis.player.PlayerStates;
 
@@ -43,6 +44,10 @@ public class ImplDecodeFeed implements DecodeFeed {
      * The amount of written pcm data to the audio track
      */
     protected long writtenPCMData = 0;
+    /**
+     * Track seconds or for how many seconds have we been playing
+     */
+    protected long writtenSeconds = 0;
 
     /**
      * Stream info as reported in the header 
@@ -60,7 +65,10 @@ public class ImplDecodeFeed implements DecodeFeed {
         this.events = events;
 	}
 
-    
+    /**
+     * Pass a stream as data source
+     * @param streamToDecode
+     */
     public void setData(InputStream streamToDecode) {
     	if (streamToDecode == null) {
             throw new IllegalArgumentException("Stream to decode must not be null.");
@@ -81,12 +89,21 @@ public class ImplDecodeFeed implements DecodeFeed {
         }
     }
     
+    /**
+     * Call notify to control the PAUSE (waiting) state, when the state is changed
+     */
     public synchronized void syncNotify() {
     	notify();
     }
     
-    @Override
-    public int onReadVorbisData(byte[] buffer, int amountToWrite) {
+    /**
+     * Triggered from the native {@link VorbisDecoder} that is requesting to read the next bit of vorbis data
+     *
+     * @param buffer        the buffer to write to
+     * @param amountToWrite the amount of vorbis data to write (from inputstream to our buffer)
+     * @return the amount actually written
+     */
+    @Override public int onReadVorbisData(byte[] buffer, int amountToWrite) {
     	Log.d(TAG, "readVorbisData call: " + amountToWrite);
         //If the player is not playing or reading the header, return 0 to end the native decode method
         if (playerState.get() == PlayerStates.STOPPED) {
@@ -106,20 +123,34 @@ public class ImplDecodeFeed implements DecodeFeed {
         }
     }
 
+    /**
+     * Triggered from the native {@link VorbisDecoder} that is requesting to write the next bit of raw PCM data
+     *
+     * @param pcmData      the raw pcm data
+     * @param amountToRead the amount available to read in the buffer and dump it to our PCM buffers
+     */
     @Override
-    public synchronized void onWritePCMData(short[] pcmData, int amountToWrite) {
+    public synchronized void onWritePCMData(short[] pcmData, int amountToRead) {
 		waitPlay();
-		
+			
         //If we received data and are playing, write to the audio track
-        if (pcmData != null && amountToWrite > 0 && audioTrack != null && playerState.isPlaying()) {
-            audioTrack.write(pcmData, 0, amountToWrite);
+        if (pcmData != null && amountToRead > 0 && audioTrack != null && playerState.isPlaying()) {
+            audioTrack.write(pcmData, 0, amountToRead);
+            // count data
+            writtenPCMData += amountToRead;
+            writtenSeconds += convertBytesToMs(amountToRead); 
+            // send a notification of progress
+            events.sendEvent(PlayerEvents.PLAY_UPDATE, (int) (writtenSeconds / 1000));
             
             // at this point we know all stream parameters, including the sampleRate, use it to compute current time.
             Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() + 
-            		" time:" + convertBytesToMs(amountToWrite));
+            		" time:" + writtenSeconds + " bytes:" + writtenPCMData);
         }
     }
 
+    /**
+     * Called when decoding has completed and we consumed all input data
+     */
     @Override
     public synchronized void onStop() {
         if (!playerState.isStopped()) {
@@ -145,6 +176,11 @@ public class ImplDecodeFeed implements DecodeFeed {
         playerState.set(PlayerStates.STOPPED);
     }
 
+    /**
+     * Called when reading header is complete and we are ready to play the stream. decoding has started
+     *
+     * @param decodeStreamInfo the stream information of what's about to be played
+     */
     @Override
     public void onStart(DecodeStreamInfo decodeStreamInfo) {
         if (playerState.get() != PlayerStates.READING_HEADER) {
@@ -156,6 +192,9 @@ public class ImplDecodeFeed implements DecodeFeed {
         if (decodeStreamInfo.getSampleRate() <= 0) {
             throw new IllegalArgumentException("Invalid sample rate, must be above 0");
         }
+        // TODO: finish initing
+        
+        writtenPCMData = 0; writtenSeconds = 0;
         
         streamInfo = decodeStreamInfo;
         
@@ -171,6 +210,9 @@ public class ImplDecodeFeed implements DecodeFeed {
         playerState.set(PlayerStates.READY_TO_PLAY); 
     }
 
+    /**
+     * Puts the decode feed in the reading header state
+     */
     @Override
     public void onStartReadingHeader() {
         if (playerState.isStopped()) {
@@ -179,6 +221,9 @@ public class ImplDecodeFeed implements DecodeFeed {
         }
     }
 
+    /**
+     * To be called from JNI when starting a new loop , useful to control pause
+     */
 	@Override
 	public void onNewIteration() {
 		Log.d(TAG, "onNewIteration");
@@ -210,7 +255,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      * we divide by 2 to compensate for the 'short' size
      */
     public static int convertBytesToMs( int bytes, long sampleRate, long channels ) {
-        return (int)(1000L * bytes / (sampleRate * channels)) / 2;
+        return (int)(1000L * bytes / (sampleRate * channels));
     }
     public int convertBytesToMs( int bytes) {
         return convertBytesToMs(bytes, streamInfo.getSampleRate(), streamInfo.getChannels());

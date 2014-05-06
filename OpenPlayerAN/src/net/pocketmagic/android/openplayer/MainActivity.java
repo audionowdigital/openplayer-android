@@ -134,6 +134,9 @@ public class MainActivity extends Activity {
                     case PlayerEvents.READY_TO_PLAY:
                     	logArea.setText("READY to play - press play :)");
                         break;
+                    case PlayerEvents.PLAY_UPDATE:
+                    	logArea.setText("Playing:" + (msg.arg1 ) + "s");
+                        break;
                 }
             }
         };
