@@ -77,4 +77,11 @@ public interface DecodeFeed {
      * To be called from JNI when starting a new loop , useful to control pause
      */
     public void onNewIteration();
+
+    /**
+     * Called to seek the stream to a position
+     * @param percent - percentage where to seek
+     */
+    public void setPosition(int percent);
+
 }

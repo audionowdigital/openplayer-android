@@ -1,18 +1,17 @@
 package org.xiph.vorbis.decodefeed;
 
-import java.io.IOException;
-import java.io.InputStream;
-
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
+import android.util.Log;
 import org.xiph.vorbis.decoderjni.DecodeFeed;
 import org.xiph.vorbis.decoderjni.DecodeStreamInfo;
 import org.xiph.vorbis.decoderjni.VorbisDecoder;
 import org.xiph.vorbis.player.PlayerEvents;
 import org.xiph.vorbis.player.PlayerStates;
 
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioTrack;
-import android.util.Log;
+import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Custom class to easily buffer and decode from a stream and write to an {@link AudioTrack}
@@ -40,7 +39,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     protected InputStream inputStream;
     
-    protected int streamLength;
+    protected long streamLength;
 
     /**
      * The amount of written pcm data to the audio track
@@ -59,7 +58,6 @@ public class ImplDecodeFeed implements DecodeFeed {
     /**
      * Creates a decode feed that reads from a file and writes to an {@link AudioTrack}
      *
-     * @param streamToDecode the stream to decode
      */
     
     public ImplDecodeFeed(PlayerStates playerState, PlayerEvents events) {
@@ -78,12 +76,16 @@ public class ImplDecodeFeed implements DecodeFeed {
      * Pass a stream as data source
      * @param streamToDecode
      */
-    public void setData(InputStream streamToDecode, int streamLength) {
+    public void setData(InputStream streamToDecode, long streamLength) {
     	if (streamToDecode == null) {
             throw new IllegalArgumentException("Stream to decode must not be null.");
         }
     	this.streamLength = streamLength;
     	this.inputStream = streamToDecode;
+        if (streamLength > 0) {
+            this.inputStream.markSupported();
+            this.inputStream.mark((int)streamLength);
+        }
     }
 
     /**
@@ -132,19 +134,29 @@ public class ImplDecodeFeed implements DecodeFeed {
             return 0;
         }
     }
-    public void setPos(int percent) {
-    	//1. dim stream 2.pos
-    	// check != -1 throw ex filesize
-    	int pos = percent * streamLength / 100;
-    	
-    	try {
-			inputStream.skip(pos);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    	
+
+    /**
+     * Called to change the current read position for the InputStream.
+     * @throws java.lang.IllegalStateException for live streams.
+     * @param percent - percentage where to seek
+     */
+    @Override
+    public void setPosition(int percent) {
+        if (streamLength < 0) {
+            throw new IllegalStateException("Stream length must be a positive number");
+        }
+        long seekPosition = percent * streamLength / 100;
+
+        if (inputStream!=null) {
+            try {
+                inputStream.reset();
+                inputStream.skip(seekPosition);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
+
     /**
      * Triggered from the native {@link VorbisDecoder} that is requesting to write the next bit of raw PCM data
      *

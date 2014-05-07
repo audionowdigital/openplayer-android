@@ -5,21 +5,15 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.view.ViewGroup;
+import android.widget.*;
 import org.xiph.vorbis.player.PlayerEvents;
 import org.xiph.vorbis.player.VorbisPlayer;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -55,10 +49,14 @@ public class MainActivity extends Activity {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
 				// TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
-				vorbisPlayer.setDataSource(
-						//getStreamLocalFile("sita-1.1-final.opus")
+			    File decodedFile = getLocalFile("test.ogg");
+                InputStream decodedStream = getLocalStream(decodedFile);
+                vorbisPlayer.setDataSource(
+						//getLocalFile("sita-1.1-final.opus")
+                        decodedStream,
+                        decodedFile.length()
 						
-						getStreamLocalFile("test.ogg"));//test-katie.ogg");
+						);//test-katie.ogg");
 		    }
 		});
         panelV.addView(b);
@@ -76,7 +74,7 @@ public class MainActivity extends Activity {
 				// String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
 		    	// String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
 		        // TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
-				vorbisPlayer.setDataSource(getStreamURL(et.getEditableText().toString()));
+				vorbisPlayer.setDataSource(getStreamURL(et.getEditableText().toString()), -1);
 		    }
 		});
         panelV.addView(b);
@@ -143,20 +141,51 @@ public class MainActivity extends Activity {
                 }
             }
         };
-        
+
+        //Create the seekbar
+        SeekBar seekBar = new SeekBar(this);
+        seekBar.setLayoutParams(new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        seekBar.setMax(100);
+        panelV.addView(seekBar);
+
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+                Log.d("SEEK", i+"");
+                vorbisPlayer.setPosition(i);
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
         // create the vorbis player
         vorbisPlayer = new VorbisPlayer( playbackHandler);
     }
 
  
-	private InputStream getStreamLocalFile(String fileOnSdCard) {
+	private File getLocalFile(String fileOnSdCard) {
 		File fileToPlay = new File(Environment.getExternalStorageDirectory(), fileOnSdCard);//"tsfh - arc.ogg");//test-katie.ogg");
+        return fileToPlay;
+//        try {
+//            return new BufferedInputStream(new FileInputStream(fileToPlay));
+//        } catch (FileNotFoundException e) {}
+//        return null;
+	}
+
+    private InputStream getLocalStream(File fileToPlay) {
         try {
             return new BufferedInputStream(new FileInputStream(fileToPlay));
         } catch (FileNotFoundException e) {}
         return null;
-	}
-	
+    }
 	private InputStream getStreamURL(String url) {
 		try {
 			URLConnection cn = new URL( url ).openConnection();

@@ -1,15 +1,14 @@
 package org.xiph.vorbis.player;
 
-import java.io.InputStream;
-
-import org.xiph.vorbis.decodefeed.ImplDecodeFeed;
-import org.xiph.vorbis.decoderjni.DecodeFeed;
-import org.xiph.vorbis.decoderjni.VorbisDecoder;
-
 import android.media.AudioTrack;
 import android.os.Handler;
 import android.os.Process;
 import android.util.Log;
+import org.xiph.vorbis.decodefeed.ImplDecodeFeed;
+import org.xiph.vorbis.decoderjni.DecodeFeed;
+import org.xiph.vorbis.decoderjni.VorbisDecoder;
+
+import java.io.InputStream;
 
 /**
  * The VorbisPlayer is responsible for decoding a vorbis bitsream into raw PCM data to play to an {@link AudioTrack}
@@ -53,11 +52,10 @@ public class VorbisPlayer implements Runnable {
     /**
      * Set an input stream as data source and starts reading from it
      * @param streamToDecode the stream to read from 
-     * @param bufferSize size of buffer
      */
-    public void setDataSource(InputStream streamToDecode) {
+    public void setDataSource(InputStream streamToDecode, long streamLength) {
     	// set an input stream as data source
-    	decodeFeed.setData(streamToDecode);
+    	decodeFeed.setData(streamToDecode, streamLength);
     	// start the thread, will go directly to "run" method
     	new Thread(this).start();
     }
@@ -169,5 +167,13 @@ public class VorbisPlayer implements Runnable {
         return playerState.isReadingHeader();
     }
 
+    /**
+     * Seek to a certain percentage in the current playing file.
+     * @throws java.lang.IllegalStateException for live streams
+     * @param percentage - position where to seek
+     */
+    public synchronized void setPosition(int percentage) {
+        decodeFeed.setPosition(percentage);
+    }
    
 }
