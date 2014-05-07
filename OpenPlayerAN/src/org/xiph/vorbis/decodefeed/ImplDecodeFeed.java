@@ -70,7 +70,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @return the second where the current play position is in the stream
      */
     public int getCurrentPosition() {
-    	return (int) (writtenMiliSeconds / 1000);
+    	return (int) (writtenMiliSeconds);
     }
     /**
      * Pass a stream as data source

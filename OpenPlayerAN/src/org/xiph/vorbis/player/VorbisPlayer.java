@@ -175,5 +175,9 @@ public class VorbisPlayer implements Runnable {
     public synchronized void setPosition(int percentage) {
         decodeFeed.setPosition(percentage);
     }
+    
+    public int getCurrentPosition(){
+        return decodeFeed.getCurrentPosition();
+    }
    
 }
