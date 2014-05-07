@@ -149,6 +149,7 @@ public class ImplDecodeFeed implements DecodeFeed {
 
         if (inputStream!=null) {
             try {
+                audioTrack.flush();
                 inputStream.reset();
                 inputStream.skip(seekPosition);
                 writtenMiliSeconds = convertBytesToMs(seekPosition);
