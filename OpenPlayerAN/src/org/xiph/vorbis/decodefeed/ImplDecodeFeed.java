@@ -151,6 +151,7 @@ public class ImplDecodeFeed implements DecodeFeed {
             try {
                 inputStream.reset();
                 inputStream.skip(seekPosition);
+                writtenMiliSeconds = convertBytesToMs(seekPosition);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -288,10 +289,10 @@ public class ImplDecodeFeed implements DecodeFeed {
      * converts bytes of buffer to mili seconds
      * we divide by 2 to compensate for the 'short' size
      */
-    public static int convertBytesToMs( int bytes, long sampleRate, long channels ) {
+    public static int convertBytesToMs( long bytes, long sampleRate, long channels ) {
         return (int)(1000L * bytes / (sampleRate * channels));
     }
-    public int convertBytesToMs( int bytes) {
+    public int convertBytesToMs( long bytes) {
         return convertBytesToMs(bytes, streamInfo.getSampleRate(), streamInfo.getChannels());
     }
 
