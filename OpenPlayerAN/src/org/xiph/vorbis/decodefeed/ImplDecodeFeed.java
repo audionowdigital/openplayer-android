@@ -39,6 +39,8 @@ public class ImplDecodeFeed implements DecodeFeed {
      * The input stream to decode from
      */
     protected InputStream inputStream;
+    
+    protected int streamLength;
 
     /**
      * The amount of written pcm data to the audio track
@@ -47,7 +49,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     /**
      * Track seconds or for how many seconds have we been playing
      */
-    protected long writtenSeconds = 0;
+    protected long writtenMiliSeconds = 0;
 
     /**
      * Stream info as reported in the header 
@@ -66,13 +68,21 @@ public class ImplDecodeFeed implements DecodeFeed {
 	}
 
     /**
+     * Polls the current stream playing position in seconds
+     * @return the second where the current play position is in the stream
+     */
+    public int getCurrentPosition() {
+    	return (int) (writtenMiliSeconds / 1000);
+    }
+    /**
      * Pass a stream as data source
      * @param streamToDecode
      */
-    public void setData(InputStream streamToDecode) {
+    public void setData(InputStream streamToDecode, int streamLength) {
     	if (streamToDecode == null) {
             throw new IllegalArgumentException("Stream to decode must not be null.");
         }
+    	this.streamLength = streamLength;
     	this.inputStream = streamToDecode;
     }
 
@@ -122,7 +132,19 @@ public class ImplDecodeFeed implements DecodeFeed {
             return 0;
         }
     }
-
+    public void setPos(int percent) {
+    	//1. dim stream 2.pos
+    	// check != -1 throw ex filesize
+    	int pos = percent * streamLength / 100;
+    	
+    	try {
+			inputStream.skip(pos);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+    }
     /**
      * Triggered from the native {@link VorbisDecoder} that is requesting to write the next bit of raw PCM data
      *
@@ -138,13 +160,13 @@ public class ImplDecodeFeed implements DecodeFeed {
             audioTrack.write(pcmData, 0, amountToRead);
             // count data
             writtenPCMData += amountToRead;
-            writtenSeconds += convertBytesToMs(amountToRead); 
+            writtenMiliSeconds += convertBytesToMs(amountToRead); 
             // send a notification of progress
-            events.sendEvent(PlayerEvents.PLAY_UPDATE, (int) (writtenSeconds / 1000));
+            events.sendEvent(PlayerEvents.PLAY_UPDATE, (int) (writtenMiliSeconds / 1000));
             
             // at this point we know all stream parameters, including the sampleRate, use it to compute current time.
             Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() + 
-            		" time:" + writtenSeconds + " bytes:" + writtenPCMData);
+            		" time:" + writtenMiliSeconds + " bytes:" + writtenPCMData);
         }
     }
 
@@ -194,7 +216,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         }
         // TODO: finish initing
         
-        writtenPCMData = 0; writtenSeconds = 0;
+        writtenPCMData = 0; writtenMiliSeconds = 0;
         
         streamInfo = decodeStreamInfo;
         

@@ -55,7 +55,10 @@ public class MainActivity extends Activity {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
 				// TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
-				vorbisPlayer.setDataSource(getStreamLocalFile("test.ogg"));//test-katie.ogg");
+				vorbisPlayer.setDataSource(
+						//getStreamLocalFile("sita-1.1-final.opus")
+						
+						getStreamLocalFile("test.ogg"));//test-katie.ogg");
 		    }
 		});
         panelV.addView(b);
