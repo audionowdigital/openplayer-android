@@ -35,6 +35,7 @@ public class MainActivity extends Activity {
     // Text view to show logged messages
     private TextView logArea;
 
+    private int DEBUG_PODCAST_LENGTH = 200;
     // Creates and sets our activities layout
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -58,8 +59,8 @@ public class MainActivity extends Activity {
                 vorbisPlayer.setDataSource(
 						//getLocalFile("sita-1.1-final.opus")
                         decodedStream,
-                        decodedFile.length()
-						
+                        decodedFile.length(),
+                        DEBUG_PODCAST_LENGTH
 						);//test-katie.ogg");
 		    }
 		});
@@ -67,7 +68,7 @@ public class MainActivity extends Activity {
         
         final EditText et = new EditText(this);
         et.setTextSize(10);
-        et.setText("http://icecast1.pulsradio.com:80/mxHD.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
+        et.setText("http://markosoft.ro/test.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
         panelV.addView(et);
         
         b = new Button(this);
@@ -78,7 +79,8 @@ public class MainActivity extends Activity {
 				// String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
 		    	// String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
 		        // TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
-				vorbisPlayer.setDataSource(getStreamURL(et.getEditableText().toString()), -1);
+				InputStream urlStrem = getStreamURL(et.getEditableText().toString());
+                vorbisPlayer.setDataSource(urlStrem, urlContentLength, DEBUG_PODCAST_LENGTH);
 		    }
 		});
         panelV.addView(b);
@@ -256,10 +258,12 @@ public class MainActivity extends Activity {
         } catch (FileNotFoundException e) {}
         return null;
     }
+    int urlContentLength = -1;
 	private InputStream getStreamURL(String url) {
 		try {
 			URLConnection cn = new URL( url ).openConnection();
 			cn.connect();
+            urlContentLength = cn.getContentLength();
 			return cn.getInputStream();
 		} catch (MalformedURLException e1) {
 			e1.printStackTrace();
