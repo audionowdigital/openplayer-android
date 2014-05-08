@@ -53,9 +53,9 @@ public class VorbisPlayer implements Runnable {
      * Set an input stream as data source and starts reading from it
      * @param streamToDecode the stream to read from 
      */
-    public void setDataSource(InputStream streamToDecode, long streamLength) {
+    public void setDataSource(InputStream streamToDecode, long streamSize, long streamLength) {
     	// set an input stream as data source
-    	decodeFeed.setData(streamToDecode, streamLength, 200);
+    	decodeFeed.setData(streamToDecode, streamSize, streamLength);
     	// start the thread, will go directly to "run" method
     	new Thread(this).start();
     }

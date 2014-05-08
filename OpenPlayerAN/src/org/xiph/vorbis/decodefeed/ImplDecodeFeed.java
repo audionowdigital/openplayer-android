@@ -50,7 +50,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     /**
      * Stream size in seconds
      */
-    protected int streamLength;
+    protected long streamLength;
 
     /**
      * The amount of written pcm data to the audio track
@@ -81,7 +81,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @return the second where the current play position is in the stream
      */
     public int getCurrentPosition() {
-    	return (int) (writtenMiliSeconds)/1000;
+    	return (int) (writtenMiliSeconds);
     }
 
     /**
@@ -90,7 +90,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @param streamSize - stream size in bytes. For live streams streamSize = -1;
      * @param streamLength - stream length in seconds
      */
-    public void setData(InputStream streamToDecode, long streamSize, int streamLength) {
+    public void setData(InputStream streamToDecode, long streamSize, long streamLength) {
     	if (streamToDecode == null) {
             throw new IllegalArgumentException("Stream to decode must not be null.");
         }
@@ -170,11 +170,11 @@ public class ImplDecodeFeed implements DecodeFeed {
         long seekPosition = percent * streamSize / 100;
         if (inputStream!=null) {
             try {
+                Log.d("SEEK", inputStream.markSupported() + "  " + inputStream.available() + "  " + seekPosition + " SEC:" + streamLength + "  " + getCurrentPosition());
                 audioTrack.flush();
                 inputStream.reset();
                 inputStream.skip(seekPosition);
                 writtenMiliSeconds = percent * streamLength / 100 * 1000; // save in millis for now.
-                Log.d("SEEK", inputStream.markSupported() + "  " + inputStream.available() + "  " + seekPosition + " SEC:" + streamLength + "  " + getCurrentPosition());
             } catch (IOException e) {
                 e.printStackTrace();
             }

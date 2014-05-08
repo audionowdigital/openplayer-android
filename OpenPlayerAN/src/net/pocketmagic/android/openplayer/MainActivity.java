@@ -31,6 +31,7 @@ public class MainActivity extends Activity {
     // Text view to show logged messages
     private TextView logArea;
 
+    private int DEBUG_PODCAST_LENGTH = 200;
     // Creates and sets our activities layout
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -54,8 +55,8 @@ public class MainActivity extends Activity {
                 vorbisPlayer.setDataSource(
 						//getLocalFile("sita-1.1-final.opus")
                         decodedStream,
-                        decodedFile.length()
-						
+                        decodedFile.length(),
+                        DEBUG_PODCAST_LENGTH
 						);//test-katie.ogg");
 		    }
 		});
@@ -75,7 +76,7 @@ public class MainActivity extends Activity {
 		    	// String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
 		        // TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
 				InputStream urlStrem = getStreamURL(et.getEditableText().toString());
-                vorbisPlayer.setDataSource(urlStrem, urlContentLength);
+                vorbisPlayer.setDataSource(urlStrem, urlContentLength, DEBUG_PODCAST_LENGTH);
 		    }
 		});
         panelV.addView(b);
