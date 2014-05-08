@@ -46,7 +46,7 @@ public class VorbisPlayer implements Runnable {
     	 this.decodeFeed = new ImplDecodeFeed(playerState, events);
     	 
     	 // pass the DecodeFeed interface to the native JNI layer, we will get all calls there
-    	 int result = VorbisDecoder.initJni(0);
+    	 int result = VorbisDecoder.initJni(1);
     }
     
     /**

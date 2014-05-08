@@ -115,8 +115,8 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @param amountToWrite the amount of opus data to write (from inputstream to our buffer)
      * @return the amount actually written
      */
-    @Override public int onReadVorbisData(byte[] buffer, int amountToWrite) {
-    	Log.d(TAG, "readVorbisData call: " + amountToWrite);
+    @Override public int onReadOpusData(byte[] buffer, int amountToWrite) {
+    	Log.d(TAG, "onReadOpusData call: " + amountToWrite);
         //If the player is not playing or reading the header, return 0 to end the native decode method
         if (playerState.get() == PlayerStates.STOPPED) {
             return 0;

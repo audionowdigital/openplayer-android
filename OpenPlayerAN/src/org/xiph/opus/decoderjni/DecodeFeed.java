@@ -46,7 +46,7 @@ public interface DecodeFeed {
      * @param amountToWrite the amount of vorbis data to write
      * @return the amount actually written
      */
-    public int onReadVorbisData(byte[] buffer, int amountToWrite);
+    public int onReadOpusData(byte[] buffer, int amountToWrite);
 
     /**
      * Triggered from the native {@link VorbisDecoder} that is requesting to write the next bit of raw PCM data

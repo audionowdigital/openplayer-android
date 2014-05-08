@@ -55,6 +55,7 @@ public class OpusPlayer implements Runnable {
      * @param streamToDecode the stream to read from 
      */
     public void setDataSource(InputStream streamToDecode, long streamLength) {
+    	Log.d(TAG, "setDataSource:" + streamLength);
     	// set an input stream as data source
     	decodeFeed.setData(streamToDecode, streamLength);
     	// start the thread, will go directly to "run" method

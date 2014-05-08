@@ -127,24 +127,6 @@ void onNewIteration(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* newIteratio
 JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_initJni(JNIEnv *env, jclass cls, int debug0) {
 	debug = debug0;
 	LOGI(LOG_TAG, "initJni called, initing methods");
-/*
-	//Find our java classes we'll be calling
-	jclass tmp = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
-	vorbisDataFeedClass = (jclass)(*env)->NewGlobalRef(env, tmp);
-
-	//Find our java classes we'll be calling
-	//jclass vorbisDataFeedClass = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
-
-	vorbisDataFeed = vorbisDataFeed0;
-
-	//Find our java method id's we'll be calling
-	readVorbisDataMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onReadVorbisData", "([BI)I");
-	writePCMDataMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onWritePCMData", "([SI)V");
-	startMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStart", "(Lorg/xiph/vorbis/decoderjni/DecodeStreamInfo;)V");
-	startReadingHeaderMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStartReadingHeader", "()V");
-	stopMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStop", "()V");
-	newIterationMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onNewIteration", "()V");
-	*/
 }
 
 JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls, jobject vorbisDataFeed) {
@@ -205,10 +187,15 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
         
         // READ DATA
         /* submit a 4k block to libvorbis' Ogg layer */
-        LOGI(LOG_TAG, "Submitting 4k block to libvorbis' Ogg layer");
+        LOGI(LOG_TAG, "Submitting 1 4k block to libvorbis' Ogg layer");
+        LOGI(LOG_TAG, "Submitting 2 4k block %d %d", oy.headerbytes, oy.bodybytes);
+
         buffer=ogg_sync_buffer(&oy,BUFFER_LENGTH);
+        LOGI(LOG_TAG, "Submitting 3 4k block %d %d", oy.headerbytes, oy.bodybytes);
+
         bytes=onReadVorbisDataFromVorbisDataFeed(env, &vorbisDataFeed, &readVorbisDataMethodId, buffer, &jByteArrayReadBuffer);
         ogg_sync_wrote(&oy,bytes);
+        LOGI(LOG_TAG, "Submitting  4 4k block %d %d", oy.headerbytes, oy.bodybytes);
         
         /* Get the first page. */
         LOGD(LOG_TAG, "Getting the first page, read (%d) bytes", bytes);
@@ -351,7 +338,7 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
                     if(result==0)break; /* need more data, so go to PREVIOUS loop and read more */
                     if(result<0){
                         /* missing or corrupt data at this page position */
-                        LOGW(LOG_TAG, "VorbisDecoder", "Corrupt or missing data in bitstream; continuing...");
+                        LOGW(LOG_TAG, "VorbisDecoder %s", "Corrupt or missing data in bitstream; continuing..");
                     }
                     else{
                         ogg_stream_pagein(&os,&og); /* can safely ignore errors at this point */

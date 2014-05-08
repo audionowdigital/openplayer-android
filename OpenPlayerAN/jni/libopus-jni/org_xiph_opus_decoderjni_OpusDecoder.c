@@ -39,8 +39,9 @@ void onStopDecodeFeed(JNIEnv *env, jobject* encDataFeed, jmethodID* stopMethodId
 //Reads raw vorbis data from the jni callback
 int onReadOpusDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID* readOpusDataMethodId, char* buffer, jbyteArray* jByteArrayReadBuffer) {
     //Call the read method
+	LOGI(LOG_TAG, "onReadOpusDataFromOpusDataFeed call.");
     int readByteCount = (*env)->CallIntMethod(env, (*encDataFeed), (*readOpusDataMethodId), (*jByteArrayReadBuffer), BUFFER_LENGTH);
-    
+    LOGI(LOG_TAG, "onReadOpusDataFromOpusDataFeed method called %d", readByteCount);
     //Don't bother copying, just return 0
     if(readByteCount == 0) {
         return 0;
@@ -127,28 +128,10 @@ void onNewIteration(JNIEnv *env, jobject *encDataFeed, jmethodID* newIterationMe
 JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_initJni(JNIEnv *env, jclass cls, int debug0) {
 	debug = debug0;
 	LOGI(LOG_TAG, "initJni called, initing methods");
-/*
-	//Find our java classes we'll be calling
-	jclass tmp = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
-	encDataFeedClass = (jclass)(*env)->NewGlobalRef(env, tmp);
-
-	//Find our java classes we'll be calling
-	//jclass encDataFeedClass = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
-
-	encDataFeed = encDataFeed0;
-
-	//Find our java method id's we'll be calling
-	readOpusDataMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onReadOpusData", "([BI)I");
-	writePCMDataMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onWritePCMData", "([SI)V");
-	startMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onStart", "(Lorg/xiph/vorbis/decoderjni/DecodeStreamInfo;)V");
-	startReadingHeaderMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onStartReadingHeader", "()V");
-	stopMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onStop", "()V");
-	newIterationMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onNewIteration", "()V");
-	*/
 }
 
 JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls, jobject encDataFeed) {
-	LOGI(LOG_TAG, "startDecoding called, initing buffers");
+	LOGI(LOG_TAG, "startDecoding called, initing buffers ");
 
     //Create a new java byte array to pass to the vorbis data feed method
     jbyteArray jByteArrayReadBuffer = (*env)->NewByteArray(env, BUFFER_LENGTH);
@@ -205,11 +188,13 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
         
         // READ DATA
         /* submit a 4k block to libvorbis' Ogg layer */
-        LOGI(LOG_TAG, "Submitting 4k block to libvorbis' Ogg layer");
+        LOGI(LOG_TAG, "Submitting 1 4k block %d %d", oy.headerbytes, oy.bodybytes);
         buffer = ogg_sync_buffer(&oy,BUFFER_LENGTH);
+        LOGI(LOG_TAG, "Submitting 2 4k block %d %d", oy.headerbytes, oy.bodybytes);
         bytes = onReadOpusDataFromOpusDataFeed(env, &encDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
+        LOGI(LOG_TAG, "Submitting 3 4k block %d %d", oy.headerbytes, oy.bodybytes);
         ogg_sync_wrote(&oy,bytes);
-        
+        LOGI(LOG_TAG, "Submitting 4 4k block %d %d", oy.headerbytes, oy.bodybytes);
         /* Get the first page. */
         LOGD(LOG_TAG, "Getting the first page, read (%d) bytes", bytes);
         if(ogg_sync_pageout(&oy,&og)!=1){
