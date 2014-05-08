@@ -148,6 +148,22 @@ public class MainActivity extends Activity {
 		});
         panelV.addView(b);
 
+        b = new Button(this);
+        b.setText("OPUS init with File");
+        b.setOnClickListener(new OnClickListener() {
+            @Override public void onClick(View arg0) {
+                logArea.setText("");
+                // String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
+                // String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
+                Log.d(TAG, "init with:"+etOpus.getEditableText().toString());
+                File decodedFile = getLocalFile("test.opus");
+                InputStream decodedStream = getLocalStream(decodedFile);
+                opusPlayer.setDataSource(decodedStream, decodedFile.length());
+//                opusPlayer.setDataSource(getStreamURL(decodedStream, -1);
+            }
+        });
+        panelV.addView(b);
+
 
         b = new Button(this);
         b.setText("Opus Play");
