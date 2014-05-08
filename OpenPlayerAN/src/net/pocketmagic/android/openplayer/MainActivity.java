@@ -10,6 +10,8 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.*;
+
+import org.xiph.opus.player.OpusPlayer;
 import org.xiph.vorbis.player.PlayerEvents;
 import org.xiph.vorbis.player.VorbisPlayer;
 
@@ -25,6 +27,8 @@ public class MainActivity extends Activity {
 	private static final String TAG = "MainActivity";
     // The vorbis player
     private VorbisPlayer vorbisPlayer;
+    private OpusPlayer opusPlayer;
+    
     // Playback handler for callbacks
     private Handler playbackHandler;
 
@@ -67,7 +71,7 @@ public class MainActivity extends Activity {
         panelV.addView(et);
         
         b = new Button(this);
-        b.setText("init with URL");
+        b.setText("VORBIS init with URL");
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
@@ -78,6 +82,7 @@ public class MainActivity extends Activity {
 		    }
 		});
         panelV.addView(b);
+
 
         b = new Button(this);
         b.setText("Play");
@@ -119,6 +124,67 @@ public class MainActivity extends Activity {
 		});
         panelV.addView(b);
         
+        //------------------- OPUS -------------- //
+        final EditText etOpus = new EditText(this);
+        et.setTextSize(10);
+        et.setText("http://icecast1.pulsradio.com:80/mxHD.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
+        panelV.addView(et);
+        
+        b = new Button(this);
+        b.setText("OPUS init with URL");
+        b.setOnClickListener(new OnClickListener() {
+			@Override public void onClick(View arg0) {
+				logArea.setText("");
+				// String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
+		    	// String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
+		        // TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
+				opusPlayer.setDataSource(getStreamURL(et.getEditableText().toString()), -1);
+		    }
+		});
+        panelV.addView(b);
+
+
+        b = new Button(this);
+        b.setText("Opus Play");
+        b.setOnClickListener(new OnClickListener() {
+			@Override public void onClick(View arg0) {
+				if (opusPlayer != null && opusPlayer.isReadyToPlay()) {
+					logArea.setText("Playing... ");
+					opusPlayer.Play();
+		        } else 
+		        	logArea.setText("Player not initialized or not ready to play");
+			}
+		});
+        panelV.addView(b);
+        
+        b = new Button(this);
+        b.setText("Opus Pause");
+        b.setOnClickListener(new OnClickListener() {
+			@Override public void onClick(View arg0) {
+				if (opusPlayer != null && opusPlayer.isPlaying() ) {
+					logArea.setText("Paused");
+					opusPlayer.Pause();
+				} else
+					logArea.setText("Player not initialized or not playing");
+			}
+		});
+        panelV.addView(b);
+        
+        b = new Button(this);
+        b.setText("Opus Stop");
+        b.setOnClickListener(new OnClickListener() {
+			@Override public void onClick(View arg0) {
+				if (opusPlayer != null) {
+					logArea.setText("Stopped");
+					opusPlayer.Stop();	
+				}
+				else
+					logArea.setText("Player not initialized");
+			}
+		});
+        panelV.addView(b);
+        
+        //------------------------------ //
         playbackHandler = new Handler() {
             @Override
             public void handleMessage(Message msg) {
@@ -168,6 +234,10 @@ public class MainActivity extends Activity {
         });
         // create the vorbis player
         vorbisPlayer = new VorbisPlayer( playbackHandler);
+        
+        // quick test for a quick player
+        opusPlayer = new OpusPlayer( playbackHandler);
+        
     }
 
  
