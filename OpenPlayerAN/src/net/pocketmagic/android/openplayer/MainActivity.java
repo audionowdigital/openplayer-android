@@ -129,7 +129,10 @@ public class MainActivity extends Activity {
         //------------------- OPUS -------------- //
         final EditText etOpus = new EditText(this);
         etOpus.setTextSize(10);
-        etOpus.setText("http://icecast1.pulsradio.com:80/mxHD.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
+        //etOpus.setText("http://icecast1.pulsradio.com:80/mxHD.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
+        //http:\/\/test01.va.audionow.com:8000\/eugen_opus_lo",
+        //http:\/\/test01.va.audionow.com:8000\/eugen_opus_hi","type":"opus"
+        etOpus.setText("http://test01.va.audionow.com:8000/eugen_opus_lo");
         panelV.addView(etOpus);
         
         b = new Button(this);
@@ -139,7 +142,7 @@ public class MainActivity extends Activity {
 				logArea.setText("");
 				// String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
 		    	// String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
-		        // TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
+				Log.d(TAG, "init with:"+etOpus.getEditableText().toString());
 				opusPlayer.setDataSource(getStreamURL(etOpus.getEditableText().toString()), -1);
 		    }
 		});

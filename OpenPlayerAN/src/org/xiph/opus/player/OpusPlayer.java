@@ -46,7 +46,8 @@ public class OpusPlayer implements Runnable {
     	 this.decodeFeed = new ImplDecodeFeed(playerState, events);
     	 
     	 // pass the DecodeFeed interface to the native JNI layer, we will get all calls there
-    	 int result = OpusDecoder.initJni(0);
+    	 Log.d(TAG,"OpusPlayer const.");
+    	 int result = OpusDecoder.initJni(1);
     }
     
     /**

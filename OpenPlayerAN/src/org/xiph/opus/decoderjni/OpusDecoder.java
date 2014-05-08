@@ -10,8 +10,8 @@ public class OpusDecoder {
      */
     static {
         System.loadLibrary("ogg");
-        System.loadLibrary("vorbis");
-        System.loadLibrary("vorbis-jni");
+        System.loadLibrary("opus");
+        System.loadLibrary("opus-jni");
     }
     
     /**
