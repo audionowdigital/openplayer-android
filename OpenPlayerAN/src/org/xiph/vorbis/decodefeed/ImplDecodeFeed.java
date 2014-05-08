@@ -10,6 +10,7 @@ import org.xiph.vorbis.decoderjni.VorbisDecoder;
 import org.xiph.vorbis.player.PlayerEvents;
 import org.xiph.vorbis.player.PlayerStates;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -36,10 +37,20 @@ public class ImplDecodeFeed implements DecodeFeed {
 
     /**
      * The input stream to decode from
+     * The inputstream must be a BufferedInputStream, as other types of streams might not implement
+     * mark/reset operations needed for seek
      */
     protected InputStream inputStream;
-    
-    protected long streamLength;
+
+    /**
+     * Stream size in bytes
+     */
+    protected long streamSize;
+
+    /**
+     * Stream size in seconds
+     */
+    protected int streamLength;
 
     /**
      * The amount of written pcm data to the audio track
@@ -51,15 +62,15 @@ public class ImplDecodeFeed implements DecodeFeed {
     protected long writtenMiliSeconds = 0;
 
     /**
-     * Stream info as reported in the header 
+     * Stream info as reported in the header
      */
     DecodeStreamInfo streamInfo;
-    
+
     /**
      * Creates a decode feed that reads from a file and writes to an {@link AudioTrack}
      *
      */
-    
+
     public ImplDecodeFeed(PlayerStates playerState, PlayerEvents events) {
     	this.playerState = playerState;
         this.events = events;
@@ -70,21 +81,32 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @return the second where the current play position is in the stream
      */
     public int getCurrentPosition() {
-    	return (int) (writtenMiliSeconds);
+    	return (int) (writtenMiliSeconds)/1000;
     }
+
     /**
      * Pass a stream as data source
      * @param streamToDecode
+     * @param streamSize - stream size in bytes. For live streams streamSize = -1;
+     * @param streamLength - stream length in seconds
      */
-    public void setData(InputStream streamToDecode, long streamLength) {
+    public void setData(InputStream streamToDecode, long streamSize, int streamLength) {
     	if (streamToDecode == null) {
             throw new IllegalArgumentException("Stream to decode must not be null.");
         }
-    	this.streamLength = streamLength;
-    	this.inputStream = streamToDecode;
-        if (streamLength > 0) {
+    	this.streamSize = streamSize;
+        this.streamLength = streamLength;
+
+        // Make sure that for podcasts, the stream is a BufferedInputStream
+        if (!(streamToDecode instanceof BufferedInputStream) && streamSize != -1) {
+            this.inputStream = new BufferedInputStream(streamToDecode);
+        } else {
+            this.inputStream = streamToDecode;
+
+        }
+          if (streamSize > 0) {
             this.inputStream.markSupported();
-            this.inputStream.mark((int)streamLength);
+            this.inputStream.mark((int)streamSize);
         }
     }
 
@@ -100,14 +122,14 @@ public class ImplDecodeFeed implements DecodeFeed {
             }
         }
     }
-    
+
     /**
      * Call notify to control the PAUSE (waiting) state, when the state is changed
      */
     public synchronized void syncNotify() {
     	notify();
     }
-    
+
     /**
      * Triggered from the native {@link VorbisDecoder} that is requesting to read the next bit of vorbis data
      *
@@ -121,7 +143,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         if (playerState.get() == PlayerStates.STOPPED) {
             return 0;
         }
-        
+
         waitPlay();
 
         //Otherwise read from the file
@@ -142,17 +164,17 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     @Override
     public void setPosition(int percent) {
-        if (streamLength < 0) {
+        if (streamSize < 0) {
             throw new IllegalStateException("Stream length must be a positive number");
         }
-        long seekPosition = percent * streamLength / 100;
-
+        long seekPosition = percent * streamSize / 100;
         if (inputStream!=null) {
             try {
                 audioTrack.flush();
                 inputStream.reset();
                 inputStream.skip(seekPosition);
-                writtenMiliSeconds = convertBytesToMs(seekPosition);
+                writtenMiliSeconds = percent * streamLength / 100 * 1000; // save in millis for now.
+                Log.d("SEEK", inputStream.markSupported() + "  " + inputStream.available() + "  " + seekPosition + " SEC:" + streamLength + "  " + getCurrentPosition());
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -168,18 +190,18 @@ public class ImplDecodeFeed implements DecodeFeed {
     @Override
     public synchronized void onWritePCMData(short[] pcmData, int amountToRead) {
 		waitPlay();
-			
+
         //If we received data and are playing, write to the audio track
         if (pcmData != null && amountToRead > 0 && audioTrack != null && playerState.isPlaying()) {
             audioTrack.write(pcmData, 0, amountToRead);
             // count data
             writtenPCMData += amountToRead;
-            writtenMiliSeconds += convertBytesToMs(amountToRead); 
+            writtenMiliSeconds += convertBytesToMs(amountToRead);
             // send a notification of progress
             events.sendEvent(PlayerEvents.PLAY_UPDATE, (int) (writtenMiliSeconds / 1000));
-            
+
             // at this point we know all stream parameters, including the sampleRate, use it to compute current time.
-            Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() + 
+            Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() +
             		" time:" + writtenMiliSeconds + " bytes:" + writtenPCMData);
         }
     }
@@ -229,21 +251,21 @@ public class ImplDecodeFeed implements DecodeFeed {
             throw new IllegalArgumentException("Invalid sample rate, must be above 0");
         }
         // TODO: finish initing
-        
+
         writtenPCMData = 0; writtenMiliSeconds = 0;
-        
+
         streamInfo = decodeStreamInfo;
-        
+
         //Create the audio track
         int channelConfiguration = decodeStreamInfo.getChannels() == 1 ? AudioFormat.CHANNEL_OUT_MONO : AudioFormat.CHANNEL_OUT_STEREO;
         int minSize = AudioTrack.getMinBufferSize((int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT);
         audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, (int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
         audioTrack.play();
-        
+
         events.sendEvent(PlayerEvents.READY_TO_PLAY);
 
         //We're ready to starting to read actual content
-        playerState.set(PlayerStates.READY_TO_PLAY); 
+        playerState.set(PlayerStates.READY_TO_PLAY);
     }
 
     /**
@@ -264,18 +286,18 @@ public class ImplDecodeFeed implements DecodeFeed {
 	public void onNewIteration() {
 		Log.d(TAG, "onNewIteration");
 	}
-	
+
 	/**
 	 * returns the number of bytes used by a buffer of given mili seconds, sample rate and channels
 	 * we multiply by 2 to compensate for the 'short' size
 	 */
 	public static int convertMsToBytes(int ms, long sampleRate, long channels ) {
-        return (int)(((long) ms) * sampleRate * channels / 1000) * 2; 
+        return (int)(((long) ms) * sampleRate * channels / 1000) * 2;
     }
 	public int converMsToBytes(int ms) {
 		return convertMsToBytes(ms, streamInfo.getSampleRate(), streamInfo.getChannels());
 	}
-	
+
 	/**
      * returns the number of samples needed to hold a buffer of given mili seconds, sample rate and channels
      */

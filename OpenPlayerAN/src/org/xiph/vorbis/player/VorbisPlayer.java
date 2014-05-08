@@ -55,12 +55,10 @@ public class VorbisPlayer implements Runnable {
      */
     public void setDataSource(InputStream streamToDecode, long streamLength) {
     	// set an input stream as data source
-    	decodeFeed.setData(streamToDecode, streamLength);
+    	decodeFeed.setData(streamToDecode, streamLength, 200);
     	// start the thread, will go directly to "run" method
     	new Thread(this).start();
     }
-
-
 
     public void Play() {
     	if (playerState.get() != PlayerStates.READY_TO_PLAY) {
@@ -179,5 +177,4 @@ public class VorbisPlayer implements Runnable {
     public int getCurrentPosition(){
         return decodeFeed.getCurrentPosition();
     }
-   
 }
