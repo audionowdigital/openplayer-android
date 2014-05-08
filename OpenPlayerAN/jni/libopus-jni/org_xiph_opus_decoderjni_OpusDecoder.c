@@ -32,14 +32,14 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 }
 
 //Stops the vorbis data feed
-void onStopDecodeFeed(JNIEnv *env, jobject* vorbisDataFeed, jmethodID* stopMethodId) {
-    (*env)->CallVoidMethod(env, (*vorbisDataFeed), (*stopMethodId));
+void onStopDecodeFeed(JNIEnv *env, jobject* encDataFeed, jmethodID* stopMethodId) {
+    (*env)->CallVoidMethod(env, (*encDataFeed), (*stopMethodId));
 }
 
 //Reads raw vorbis data from the jni callback
-int onReadOpusDataFromOpusDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jmethodID* readOpusDataMethodId, char* buffer, jbyteArray* jByteArrayReadBuffer) {
+int onReadOpusDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID* readOpusDataMethodId, char* buffer, jbyteArray* jByteArrayReadBuffer) {
     //Call the read method
-    int readByteCount = (*env)->CallIntMethod(env, (*vorbisDataFeed), (*readOpusDataMethodId), (*jByteArrayReadBuffer), BUFFER_LENGTH);
+    int readByteCount = (*env)->CallIntMethod(env, (*encDataFeed), (*readOpusDataMethodId), (*jByteArrayReadBuffer), BUFFER_LENGTH);
     
     //Don't bother copying, just return 0
     if(readByteCount == 0) {
@@ -58,7 +58,7 @@ int onReadOpusDataFromOpusDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jmethod
 }
 
 //Writes the pcm data to the Java layer
-void onWritePCMDataFromOpusDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jmethodID* writePCMDataMethodId, ogg_int16_t* buffer, int bytes, jshortArray* jShortArrayWriteBuffer) {
+void onWritePCMDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID* writePCMDataMethodId, ogg_int16_t* buffer, int bytes, jshortArray* jShortArrayWriteBuffer) {
     
     //No data to read, just exit
     if(bytes == 0) {
@@ -70,14 +70,14 @@ void onWritePCMDataFromOpusDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jmetho
     (*env)->SetShortArrayRegion(env, (*jShortArrayWriteBuffer), 0, bytes, (jshort *)buffer);
     
     //Call the write pcm data method
-    (*env)->CallVoidMethod(env, (*vorbisDataFeed), (*writePCMDataMethodId), (*jShortArrayWriteBuffer), bytes);
+    (*env)->CallVoidMethod(env, (*encDataFeed), (*writePCMDataMethodId), (*jShortArrayWriteBuffer), bytes);
 }
 
 //jclass 	//decodeStreamInfoClass,
-	//	vorbisDataFeedClass;
+	//	encDataFeedClass;
 
 //Starts the decode feed with the necessary information about sample rates, channels, etc about the stream
-void onStart(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor) {
+void onStart(JNIEnv *env, jobject *encDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor) {
     LOGI(LOG_TAG, "Notifying decode feed");
 
     //Creates a java string for the vendor
@@ -95,7 +95,7 @@ void onStart(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, lon
     jobject decodeStreamInfo = (*env)->NewObject(env, decodeStreamInfoClass, constructor, (jlong)sampleRate, (jlong)channels, vendorString);
 
     //Call decode feed onStart
-    (*env)->CallVoidMethod(env, (*vorbisDataFeed), (*startMethodId), decodeStreamInfo);
+    (*env)->CallVoidMethod(env, (*encDataFeed), (*startMethodId), decodeStreamInfo);
 
     //Cleanup decode feed object
     (*env)->DeleteLocalRef(env, decodeStreamInfo);
@@ -105,49 +105,49 @@ void onStart(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, lon
 }
 
 //Starts reading the header information
-void onStartReadingHeader(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startReadingHeaderMethodId) {
+void onStartReadingHeader(JNIEnv *env, jobject *encDataFeed, jmethodID* startReadingHeaderMethodId) {
     LOGI(LOG_TAG, "Notifying decode feed to onStart reading the header");
 
     //Call header onStart reading method
-    (*env)->CallVoidMethod(env, (*vorbisDataFeed), (*startReadingHeaderMethodId));
+    (*env)->CallVoidMethod(env, (*encDataFeed), (*startReadingHeaderMethodId));
 }
 
 //Starts reading the header information
-void onNewIteration(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* newIterationMethodId) {
+void onNewIteration(JNIEnv *env, jobject *encDataFeed, jmethodID* newIterationMethodId) {
     //LOGI(LOG_TAG, "Notifying decode feed to onNewIteration");
 
     //Call header onStart reading method
-    (*env)->CallVoidMethod(env, (*vorbisDataFeed), (*newIterationMethodId));
+    (*env)->CallVoidMethod(env, (*encDataFeed), (*newIterationMethodId));
 }
 
-//jobject vorbisDataFeed;
+//jobject encDataFeed;
 //jmethodID readOpusDataMethodId, writePCMDataMethodId, startMethodId, startReadingHeaderMethodId, stopMethodId, newIterationMethodId;
 
-//onStartReadingHeader(env, &vorbisDataFeed, &startReadingHeaderMethodId);
+//onStartReadingHeader(env, &encDataFeed, &startReadingHeaderMethodId);
 JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_initJni(JNIEnv *env, jclass cls, int debug0) {
 	debug = debug0;
 	LOGI(LOG_TAG, "initJni called, initing methods");
 /*
 	//Find our java classes we'll be calling
 	jclass tmp = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
-	vorbisDataFeedClass = (jclass)(*env)->NewGlobalRef(env, tmp);
+	encDataFeedClass = (jclass)(*env)->NewGlobalRef(env, tmp);
 
 	//Find our java classes we'll be calling
-	//jclass vorbisDataFeedClass = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
+	//jclass encDataFeedClass = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
 
-	vorbisDataFeed = vorbisDataFeed0;
+	encDataFeed = encDataFeed0;
 
 	//Find our java method id's we'll be calling
-	readOpusDataMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onReadOpusData", "([BI)I");
-	writePCMDataMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onWritePCMData", "([SI)V");
-	startMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStart", "(Lorg/xiph/vorbis/decoderjni/DecodeStreamInfo;)V");
-	startReadingHeaderMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStartReadingHeader", "()V");
-	stopMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStop", "()V");
-	newIterationMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onNewIteration", "()V");
+	readOpusDataMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onReadOpusData", "([BI)I");
+	writePCMDataMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onWritePCMData", "([SI)V");
+	startMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onStart", "(Lorg/xiph/vorbis/decoderjni/DecodeStreamInfo;)V");
+	startReadingHeaderMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onStartReadingHeader", "()V");
+	stopMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onStop", "()V");
+	newIterationMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onNewIteration", "()V");
 	*/
 }
 
-JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls, jobject vorbisDataFeed) {
+JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls, jobject encDataFeed) {
 	LOGI(LOG_TAG, "startDecoding called, initing buffers");
 
     //Create a new java byte array to pass to the vorbis data feed method
@@ -157,16 +157,16 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
     jshortArray jShortArrayWriteBuffer = (*env)->NewShortArray(env, BUFFER_LENGTH*2);
 
     //-- get Java layer method pointer --//
-	jclass vorbisDataFeedClass = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
+	jclass encDataFeedClass = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
 
 
 	//Find our java method id's we'll be calling
-	jmethodID readOpusDataMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onReadOpusData", "([BI)I");
-	jmethodID writePCMDataMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onWritePCMData", "([SI)V");
-	jmethodID startMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStart", "(Lorg/xiph/vorbis/decoderjni/DecodeStreamInfo;)V");
-	jmethodID startReadingHeaderMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStartReadingHeader", "()V");
-	jmethodID stopMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onStop", "()V");
-	jmethodID newIterationMethodId = (*env)->GetMethodID(env, vorbisDataFeedClass, "onNewIteration", "()V");
+	jmethodID readOpusDataMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onReadOpusData", "([BI)I");
+	jmethodID writePCMDataMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onWritePCMData", "([SI)V");
+	jmethodID startMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onStart", "(Lorg/xiph/vorbis/decoderjni/DecodeStreamInfo;)V");
+	jmethodID startReadingHeaderMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onStartReadingHeader", "()V");
+	jmethodID stopMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onStop", "()V");
+	jmethodID newIterationMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onNewIteration", "()V");
     //--
     ogg_int16_t convbuffer[BUFFER_LENGTH]; /* take 8k out of the data segment, not the stack */
     int convsize=BUFFER_LENGTH;
@@ -176,10 +176,10 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
     ogg_page         og; /* one Ogg bitstream page. Opus packets are inside */
     ogg_packet       op; /* one raw packet of data for decode */
     
-    vorbis_info      vi; /* struct that stores all the static vorbis bitstream settings */
-    vorbis_comment   vc; /* struct that stores all the bitstream user comments */
-    vorbis_dsp_state vd; /* central working state for the packet->PCM decoder */
-    vorbis_block     vb; /* local working space for packet->PCM decode */
+   // vorbis_info      vi; /* struct that stores all the static vorbis bitstream settings */
+   // vorbis_comment   vc; /* struct that stores all the bitstream user comments */
+   // vorbis_dsp_state vd; /* central working state for the packet->PCM decoder */
+   // vorbis_block     vb; /* local working space for packet->PCM decode */
     
     char *buffer;
     int  bytes;
@@ -187,7 +187,7 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
     /********** Decode setup ************/
 
     //Notify the decode feed we are starting to initialize
-    onStartReadingHeader(env, &vorbisDataFeed, &startReadingHeaderMethodId);
+    onStartReadingHeader(env, &encDataFeed, &startReadingHeaderMethodId);
     
     ogg_sync_init(&oy); /* Now we can read pages */
     
@@ -206,8 +206,8 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
         // READ DATA
         /* submit a 4k block to libvorbis' Ogg layer */
         LOGI(LOG_TAG, "Submitting 4k block to libvorbis' Ogg layer");
-        buffer=ogg_sync_buffer(&oy,BUFFER_LENGTH);
-        bytes=onReadOpusDataFromOpusDataFeed(env, &vorbisDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
+        buffer = ogg_sync_buffer(&oy,BUFFER_LENGTH);
+        bytes = onReadOpusDataFromOpusDataFeed(env, &encDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
         ogg_sync_wrote(&oy,bytes);
         
         /* Get the first page. */
@@ -217,7 +217,7 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 
             if(bytes<BUFFER_LENGTH)break;
             /* error case.  Must not be Opus data */
-            onStopDecodeFeed(env, &vorbisDataFeed, &stopMethodId);
+            onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
             return INVALID_OGG_BITSTREAM;
         }
 
@@ -235,27 +235,29 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
         header is an easy way to identify a Opus bitstream and it's
         useful to see that functionality separated out. */
 
-        vorbis_info_init(&vi);
+        /*vorbis_info_init(&vi);
         vorbis_comment_init(&vc);
+        */
         if(ogg_stream_pagein(&os,&og)<0){
-            /* error; stream version mismatch perhaps */
-            onStopDecodeFeed(env, &vorbisDataFeed, &stopMethodId);
+            // error; stream version mismatch perhaps
+            onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
             return ERROR_READING_FIRST_PAGE;
         }
 
 
         if(ogg_stream_packetout(&os,&op)!=1){
             /* no page? must not be vorbis */
-            onStopDecodeFeed(env, &vorbisDataFeed, &stopMethodId);
+            onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
             return ERROR_READING_INITIAL_HEADER_PACKET;
         }
 
+        LOGI(LOG_TAG, "Init Header 1");
 
-        if(vorbis_synthesis_headerin(&vi,&vc,&op)<0){
-            /* error case; not a vorbis header */
-            onStopDecodeFeed(env, &vorbisDataFeed, &stopMethodId);
+        /*if(vorbis_synthesis_headerin(&vi,&vc,&op)<0){
+            // error case; not a vorbis header
+            onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
             return NOT_VORBIS_HEADER;
-        }
+        }*/
 
 
         /* At this point, we're sure we're Opus. We've set up the logical
@@ -288,14 +290,16 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
                         if(result<0){
                             /* data at some point was corrupted or missing!
                             We can't tolerate that in a header.  Die. */
-                            onStopDecodeFeed(env, &vorbisDataFeed, &stopMethodId);
+                            onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
                             return CORRUPT_SECONDARY_HEADER;
                         }
-                        result=vorbis_synthesis_headerin(&vi,&vc,&op);
+                        LOGI(LOG_TAG, "Init header 2");
+                        /*result=vorbis_synthesis_headerin(&vi,&vc,&op);
                         if(result<0){
-                            onStopDecodeFeed(env, &vorbisDataFeed, &stopMethodId);
+                            onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
                             return CORRUPT_SECONDARY_HEADER;
-                        }
+                        }*/
+
                         i++;
                     }
                 }
@@ -304,9 +308,9 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
             //READ DATA
             /* no harm in not checking before adding more */
             buffer=ogg_sync_buffer(&oy,BUFFER_LENGTH);
-            bytes=onReadOpusDataFromOpusDataFeed(env, &vorbisDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
+            bytes=onReadOpusDataFromOpusDataFeed(env, &encDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
             if(bytes==0 && i<2){
-                onStopDecodeFeed(env, &vorbisDataFeed, &stopMethodId);
+                onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
                 return PREMATURE_END_OF_FILE;
             }
             ogg_sync_wrote(&oy,bytes);
@@ -316,160 +320,34 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
         /* Throw the comments plus a few lines about the bitstream we're
         decoding */
         {
-            char **ptr=vc.user_comments;
+           /* char **ptr=vc.user_comments;
             while(*ptr){
                 ++ptr;
             }
 
             LOGI(LOG_TAG, "Bitstream is %d channel",vi.channels);
             LOGI(LOG_TAG, "Bitstream %d Hz",vi.rate);
-            LOGI(LOG_TAG, "Encoded by: %s\n\n",vc.vendor);
-
-            onStart(env, &vorbisDataFeed, &startMethodId, vi.rate, vi.channels, vc.vendor);
+            LOGI(LOG_TAG, "Encoded by: %s\n\n",vc.vendor);*/
+            // report stream parameters
+            onStart(env, &encDataFeed, &startMethodId, 0,0,"");// vi.rate, vi.channels, vc.vendor);
         }
 
-        convsize=BUFFER_LENGTH/vi.channels;
+        //convsize=BUFFER_LENGTH/vi.channels;
 
         /* OK, got and parsed all three headers. Initialize the Opus
         packet->PCM decoder. */
         LOGD(LOG_TAG, "Headers parsed, go for PCM decoding");
-        if(vorbis_synthesis_init(&vd,&vi)==0){
-            /* central decode state */
-            vorbis_block_init(&vd,&vb);          /* local state for most of the decode
-            so multiple block decodes can
-            proceed in parallel. We could init
-            multiple vorbis_block structures
-            for vd here */
 
-            /* The rest is just a straight decode loop until end of stream */
-            while(!eos){
-            	LOGE(LOG_TAG, "start while 5");
-
-                while(!eos){
-                	LOGE(LOG_TAG, "start while 6");
-                    int result=ogg_sync_pageout(&oy,&og);
-                    if(result==0)break; /* need more data, so go to PREVIOUS loop and read more */
-                    if(result<0){
-                        /* missing or corrupt data at this page position */
-                        LOGW(LOG_TAG, "OpusDecoder", "Corrupt or missing data in bitstream; continuing...");
-                    }
-                    else{
-                        ogg_stream_pagein(&os,&og); /* can safely ignore errors at this point */
-                        while(1){
-                        	LOGE(LOG_TAG, "start while 7");
-                        	/* inform player that we are about to start a new iteration */
-                  	        onNewIteration(env, &vorbisDataFeed, &newIterationMethodId);
-
-                            result=ogg_stream_packetout(&os,&op);
-
-                            if(result==0)break; /* need more data so exit and go read data in PREVIOUS loop */
-                            if(result<0){
-                                /* missing or corrupt data at this page position */
-                                /* no reason to complain; already complained above */
-                            }
-                            else{
-
-                                /* we have a packet.  Decode it */
-                                float **pcm;
-                                int samples;
-
-                                if(vorbis_synthesis(&vb,&op)==0) /* test for success! */
-                                vorbis_synthesis_blockin(&vd,&vb);
-                                /*
-
-                                **pcm is a multichannel float vector.  In stereo, for
-                                example, pcm[0] is left, and pcm[1] is right.  samples is
-                                the size of each channel.  Convert the float values
-                                (-1.<=range<=1.) to whatever PCM format and write it out */
-
-                                while((samples=vorbis_synthesis_pcmout(&vd,&pcm))>0){
-                                	LOGE(LOG_TAG, "start while 8");
-                                    int j;
-                                    int clipflag=0;
-                                    int bout=(samples<convsize?samples:convsize);
-
-                                    /* convert floats to 16 bit signed ints (host order) and
-                                    interleave */
-                                    for(i=0;i<vi.channels;i++){
-                                        ogg_int16_t *ptr=convbuffer+i;
-                                        float  *mono=pcm[i];
-                                        for(j=0;j<bout;j++){
-
-                                            #if 1
-                                            int val=floor(mono[j]*32767.f+.5f);
-                                            #else /* optional dither */
-                                            int val=mono[j]*32767.f+drand48()-0.5f;
-                                            #endif
-                                            /* might as well guard against clipping */
-                                            if(val>32767){
-                                                val=32767;
-                                                clipflag=1;
-                                            }
-
-                                            if(val<-32768){
-                                                val=-32768;
-                                                clipflag=1;
-                                            }
-
-                                            *ptr=val;
-                                            ptr+=vi.channels;
-                                        }
-                                    }
-
-                                    if(clipflag) {
-                                        LOGI(LOG_TAG, "Clipping in frame %ld\n",(long)(vd.sequence));
-                                    }
-
-                                    /*
-                                     * Call decodefeed to push data to AudioTrack
-                                     */
-                                    onWritePCMDataFromOpusDataFeed(env, &vorbisDataFeed, &writePCMDataMethodId,
-                                    		&convbuffer[0], bout*vi.channels, &jShortArrayWriteBuffer);
-
-                                    vorbis_synthesis_read(&vd,bout); /* tell libvorbis how many samples we actually consumed */
-                                }
-                            }
-                        }
-                        if(ogg_page_eos(&og))eos=1;
-                    }
-                }
-
-                // content player read
-                if(!eos){
-                	// READ DATA
-                    buffer=ogg_sync_buffer(&oy,BUFFER_LENGTH);
-                    bytes=onReadOpusDataFromOpusDataFeed(env, &vorbisDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
-                    ogg_sync_wrote(&oy,bytes);
-
-                    // ending condition if no more data available
-                    if(bytes==0) eos=1;
-                }
-            }
-
-            /* ogg_page and ogg_packet structs always point to storage in
-            libvorbis.  They're never freed or manipulated directly */
-            vorbis_block_clear(&vb);
-            vorbis_dsp_clear(&vd);
-
-        }
-        else{
-            LOGW(LOG_TAG, "Error: Corrupt header during playback initialization.");
-        }
-
-        /* clean up this logical bitstream; before exit we see if we're
-        followed by another [chained] */
 
         ogg_stream_clear(&os);
-        vorbis_comment_clear(&vc);
-        vorbis_info_clear(&vi);  /* must be called last */
-    }
 
+    }
     /* OK, clean up the framer */
     ogg_sync_clear(&oy);
 
 
 
-    onStopDecodeFeed(env, &vorbisDataFeed, &stopMethodId);
+    onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
 
     //Clean up our buffers
     (*env)->DeleteLocalRef(env, jByteArrayReadBuffer);
