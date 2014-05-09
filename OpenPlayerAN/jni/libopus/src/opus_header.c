@@ -33,6 +33,11 @@
 #include <string.h>
 #include <stdio.h>
 
+
+
+#include <android/log.h>
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, "opus_header",__VA_ARGS__)
+
 /* Header contents:
   - "OpusHead" (64 bits)
   - version number (8 bits)
@@ -133,8 +138,7 @@ static int read_chars(ROPacket *p, unsigned char *str, int nb_chars)
    return 1;
 }
 
-int opus_header_parse(const unsigned char *packet, int len, OpusHeader *h)
-{
+int opus_header_parse(const unsigned char *packet, int len, OpusHeader *h) {
    int i;
    char str[9];
    ROPacket p;
@@ -162,12 +166,15 @@ int opus_header_parse(const unsigned char *packet, int len, OpusHeader *h)
    if (h->channels == 0)
       return 0;
 
+   LOGD("ver:%d channels:%d", h->version, h->channels);
+
    if (!read_uint16(&p, &shortval))
       return 0;
    h->preskip = shortval;
 
    if (!read_uint32(&p, &h->input_sample_rate))
       return 0;
+   LOGD("ver:%d channels:%d sample:%d", h->version, h->channels,h->input_sample_rate);
 
    if (!read_uint16(&p, &shortval))
       return 0;

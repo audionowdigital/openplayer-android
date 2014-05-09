@@ -142,11 +142,12 @@ static OpusDecoder *process_header(ogg_packet *op, int *rate, int *channels, int
 	global_stack = user_malloc(OPUS_STACK_SIZE);
 	#endif
 	*/
+
 	if (opus_header_parse(op->packet, op->bytes, &header) == 0) {
 		LOGE(LOG_TAG, "Cannot parse header");
 		return NULL;
 	}
-
+	LOGD(LOG_TAG, "header details: ch:%d samplerate:%d", header.channels, header.input_sample_rate);
 	*channels = header.channels;
 
 	if (!*rate) *rate = header.input_sample_rate;
@@ -320,7 +321,7 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 			return NOT_VORBIS_HEADER;
 		}
 
-		st = process_header(&op, &rate, &channels, &preskip, &quiet);
+		st = process_header(&op, &rate, &channels, &preskip, quiet);
 
         // os, og, op
         //  ogg_stream_state os; /* take physical pages, weld into a logical stream of packets */

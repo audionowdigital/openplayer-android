@@ -7,7 +7,7 @@ LOCAL_CFLAGS += -I$(LOCAL_PATH)/../libopus/include -I$(LOCAL_PATH)/../libogg/inc
 ifeq ($(TARGET_ARCH),arm)
 	LOCAL_CFLAGS += -march=armv6 -marm -mfloat-abi=softfp -mfpu=vfp
 endif
-$(warning localpath is: $(LOCAL_PATH))
+#$(warning localpath is: $(LOCAL_PATH))
 LOCAL_SHARED_LIBRARIES := libogg libopus
 
 LOCAL_LDLIBS := -L$(SYSROOT)/usr/lib -llog

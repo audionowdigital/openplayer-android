@@ -4,13 +4,14 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libopus
-LOCAL_CFLAGS := -I$(LOCAL_PATH)/include -I$(LOCAL_PATH)/celt -I$(LOCAL_PATH)/silk -I$(LOCAL_PATH)/silk/fixed -Drestrict='' \
-             -D__EMX__ -DOPUS_BUILD -DFIXED_POINT -DUSE_ALLOCA -DHAVE_LRINT -DHAVE_LRINTF -O3 -fno-math-errno
+LOCAL_CFLAGS := -I$(LOCAL_PATH)/../libogg/include  \
+                -I$(LOCAL_PATH)/include -I$(LOCAL_PATH)/celt -I$(LOCAL_PATH)/silk -I$(LOCAL_PATH)/silk/fixed -Drestrict='' \
+                 -D__EMX__ -DOPUS_BUILD -DFIXED_POINT -DUSE_ALLOCA -DHAVE_LRINT -DHAVE_LRINTF -O3 -fno-math-errno
 
 #ifeq ($(TARGET_ARCH),arm)
 #	LOCAL_CFLAGS += -march=armv6 -marm -mfloat-abi=softfp -mfpu=vfp
 #endif
-
+LOCAL_LDLIBS := -L$(SYSROOT)/usr/lib -llog
 LOCAL_SRC_FILES		:= celt/bands.c								celt/celt.c \
 					   celt/cwrs.c								celt/entcode.c   \
 						 celt/celt_decoder.c 				celt/celt_encoder.c \
