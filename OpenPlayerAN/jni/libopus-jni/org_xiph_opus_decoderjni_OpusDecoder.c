@@ -130,6 +130,69 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_initJni(JNIEnv *
 	LOGI(LOG_TAG, "initJni called, initing methods");
 }
 
+/*Process an Opus header and setup the opus decoder based on it.
+  It takes several pointers for header values which are needed
+  elsewhere in the code.*/
+static OpusDecoder *process_header(ogg_packet *op, int *rate, int *channels, int *preskip, int quiet) {
+	int err;
+	OpusDecoder *st;
+	OpusHeader header;
+	/*
+	#ifdef NONTHREADSAFE_PSEUDOSTACK
+	global_stack = user_malloc(OPUS_STACK_SIZE);
+	#endif
+	*/
+	if (opus_header_parse(op->packet, op->bytes, &header) == 0) {
+		LOGE(LOG_TAG, "Cannot parse header");
+		return NULL;
+	}
+
+	*channels = header.channels;
+
+	if (!*rate) *rate = header.input_sample_rate;
+	/* validate sample rate */
+	/* If the rate is unspecified we decode to 48000 */
+	if (*rate == 0) *rate = 48000;
+	if (*rate < 8000 || *rate > 192000) {
+		LOGE(LOG_TAG, "Invalid input_rate %d, defaulting to 48000 instead.",*rate);
+		*rate = 48000;
+	}
+
+	*preskip = header.preskip;
+	st = opus_decoder_create(48000, header.channels, &err);
+	if (err != OPUS_OK)	{
+		LOGE(LOG_TAG, "Cannot create decoder: %s", opus_strerror(err));
+		return NULL;
+	}
+	if (!st) {
+		LOGE(LOG_TAG, "Decoder initialization failed: %s", opus_strerror(err));
+		return NULL;
+	}
+
+	if (header.gain != 0) {
+		/*Gain API added in a newer libopus version, if we don't have it
+		 we apply the gain ourselves. We also add in a user provided
+		 manual gain at the same time.*/
+		int gainadj = (int) header.gain;
+		err = opus_decoder_ctl(st, OPUS_SET_GAIN(gainadj));
+		if (err != OPUS_OK) {
+		  LOGE(LOG_TAG, "Error setting gain: %s", opus_strerror(err));
+		  return NULL;
+		}
+	}
+
+	if (!quiet) {
+		LOGE(LOG_TAG, "Decoding to %d Hz (%d channels)", *rate, *channels);
+		if (header.version != 1) LOGE(LOG_TAG, "Header v%d",header.version);
+
+		if (header.gain != 0) {
+			LOGE(LOG_TAG, "Playback gain: %f dB\n", header.gain / 256.);
+		}
+	}
+
+	return st;
+}
+
 JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls, jobject encDataFeed) {
 	LOGI(LOG_TAG, "startDecoding called, initing buffers ");
 
@@ -163,7 +226,16 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
    // vorbis_comment   vc; /* struct that stores all the bitstream user comments */
    // vorbis_dsp_state vd; /* central working state for the packet->PCM decoder */
    // vorbis_block     vb; /* local working space for packet->PCM decode */
-    
+    // OPUS stuff
+    ogg_int64_t  packet_count = 0;
+    long opus_serialno;
+    int has_opus_stream = 0;
+    OpusDecoder *st;
+    int channels;
+    int rate;
+    int preskip;
+    int quiet;
+
     char *buffer;
     int  bytes;
     
@@ -174,38 +246,33 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
     
     ogg_sync_init(&oy); /* Now we can read pages */
     
+    //
     while(1) {
     	LOGE(LOG_TAG, "start while 1");
         /* we repeat if the bitstream is chained */
         int eos=0;
         int i;
         
-
         /* grab some data at the head of the stream. We want the first page
         (which is guaranteed to be small and only contain the Opus
         stream initial header) We need the first page to get the stream
-        serialno. */
-        
+        serialno - similar to Vorbis logic */
+
         // READ DATA
-        /* submit a 4k block to libvorbis' Ogg layer */
-        LOGI(LOG_TAG, "Submitting 1 4k block %d %d", oy.headerbytes, oy.bodybytes);
+        /* submit a 4k block to libopus' Ogg layer */
+        LOGI(LOG_TAG, "Submitting 1 4k block");
         buffer = ogg_sync_buffer(&oy,BUFFER_LENGTH);
-        LOGI(LOG_TAG, "Submitting 2 4k block %d %d", oy.headerbytes, oy.bodybytes);
         bytes = onReadOpusDataFromOpusDataFeed(env, &encDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
-        LOGI(LOG_TAG, "Submitting 3 4k block %d %d", oy.headerbytes, oy.bodybytes);
         ogg_sync_wrote(&oy,bytes);
-        LOGI(LOG_TAG, "Submitting 4 4k block %d %d", oy.headerbytes, oy.bodybytes);
         /* Get the first page. */
         LOGD(LOG_TAG, "Getting the first page, read (%d) bytes", bytes);
-        if(ogg_sync_pageout(&oy,&og)!=1){
+        if(ogg_sync_pageout(&oy,&og)!=1) {
         	/* have we simply run out of data?  If so, we're done. */
-
-            if(bytes<BUFFER_LENGTH)break;
+            if(bytes<BUFFER_LENGTH) break;
             /* error case.  Must not be Opus data */
             onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
             return INVALID_OGG_BITSTREAM;
         }
-
         LOGI(LOG_TAG, "Successfully fetched the first page");
 
         /* Get the serial number and set up the rest of decode. */
@@ -216,14 +283,15 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
         Ogg bitstream is in fact Opus data */
 
         /* I handle the initial header first instead of just having the code
-        read all three Opus headers at once because reading the initial
+        read all TWO Opus headers at once because reading the initial
         header is an easy way to identify a Opus bitstream and it's
         useful to see that functionality separated out. */
 
-        /*vorbis_info_init(&vi);
+        /*
+         * vorbis_info_init(&vi);
         vorbis_comment_init(&vc);
         */
-        if(ogg_stream_pagein(&os,&og)<0){
+        if(ogg_stream_pagein(&os,&og) < 0){
             // error; stream version mismatch perhaps
             onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
             return ERROR_READING_FIRST_PAGE;
@@ -236,7 +304,30 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
             return ERROR_READING_INITIAL_HEADER_PACKET;
         }
 
-        LOGI(LOG_TAG, "Init Header 1");
+        /*OggOpus streams are identified by a magic string in the initial  stream header.*/
+		if (op.b_o_s && op.bytes >= 8 && !memcmp(op.packet, "OpusHead", 8))
+		{
+			packet_count = 0;
+			eos = 0;
+			opus_serialno = os.serialno;
+			has_opus_stream = 1;
+			LOGD(LOG_TAG, "Header received, stream serial number: %d" , op.packetno);
+		}
+
+		/* Discard packets with the wrong serial no */
+		if (!has_opus_stream && os.serialno != opus_serialno) {
+			onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+			return NOT_VORBIS_HEADER;
+		}
+
+		st = process_header(&op, &rate, &channels, &preskip, &quiet);
+
+        // os, og, op
+        //  ogg_stream_state os; /* take physical pages, weld into a logical stream of packets */
+        //   ogg_page         og; /* one Ogg bitstream page. Opus packets are inside */
+        //   ogg_packet       op; /* one raw packet of data for decode */
+        LOGI(LOG_TAG, "Data: %d %d %d %d", rate, channels, preskip, quiet);
+
 
         /*if(vorbis_synthesis_headerin(&vi,&vc,&op)<0){
             // error case; not a vorbis header

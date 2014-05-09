@@ -5,6 +5,7 @@
 #include <string.h>
 #include <ogg/ogg.h>
 #include <opus.h>
+#include <opus_header.h>
 #include <android/log.h>
 
 #ifndef _Included_org_xiph_opus_OpusDecoder

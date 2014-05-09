@@ -74,6 +74,7 @@ LOCAL_SRC_FILES		:= celt/bands.c								celt/celt.c \
                                            src/mlp.c                                                    src/mlp_data.c \
                                            src/analysis.c \
 					   src/opus_decoder.c						src/opus_encoder.c \
+                                           src/opus_header.c \
 					   src/opus_multistream.c					src/repacketizer.c
 
 include $(BUILD_SHARED_LIBRARY)
