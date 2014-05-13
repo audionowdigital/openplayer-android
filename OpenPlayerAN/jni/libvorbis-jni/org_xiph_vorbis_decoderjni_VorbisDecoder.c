@@ -277,7 +277,7 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
                         i++;
                     }
                 }
-            }
+            } // end while 3
 
             //READ DATA
             /* no harm in not checking before adding more */
@@ -288,7 +288,7 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
                 return PREMATURE_END_OF_FILE;
             }
             ogg_sync_wrote(&oy,bytes);
-        }
+        } // end while 2
 
 
         /* Throw the comments plus a few lines about the bitstream we're

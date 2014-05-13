@@ -155,7 +155,7 @@ public class MainActivity extends Activity {
                 logArea.setText("");
                 // String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
                 // String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
-                Log.d(TAG, "init with:"+etOpus.getEditableText().toString());
+                Log.d(TAG, "init with file");
                 File decodedFile = getLocalFile("test2.opus");
                 InputStream decodedStream = getLocalStream(decodedFile);
                 opusPlayer.setDataSource(decodedStream, decodedFile.length());

@@ -231,6 +231,10 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 
     /********** Decode setup ************/
 
+    //Notify the decode feed we are starting to initialize
+    onStartReadingHeader(env, &encDataFeed, &startReadingHeaderMethodId);
+    
+    ogg_sync_init(&oy); /* Now we can read pages */
     
 
     /* 20ms at 48000, TODO 120ms */
@@ -257,7 +261,7 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 	int gran_offset = 0;
 	int has_opus_stream = 0;
 	ogg_int32_t opus_serialno;
-	int proccessing_page = 0;
+	int proccessing_page;
 	int seeking;
 	opus_int64 maxout;
 	void *ogg_buf;
@@ -276,89 +280,187 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 	//
 	char error_string[128];
 	//
-	//Notify the decode feed we are starting to initialize
-	onStartReadingHeader(env, &encDataFeed, &startReadingHeaderMethodId);
-	ogg_sync_init(&oy); /* Now we can read pages */
-	//
+    //
     while(1) {
     	/* grab some data at the head of the stream. We want the first page
         (which is guaranteed to be small and only contain the Opus
         stream initial header) We need the first page to get the stream
         serialno - similar to Vorbis logic */
+
     	// READ DATA
 		/* submit a 4k block to libopus' Ogg layer */
-		LOGI(LOG_TAG, "Submitting 4k block");
+		LOGI(LOG_TAG, "Submitting 1 4k block");
 		buffer = ogg_sync_buffer(&oy,BUFFER_LENGTH);
 		bytes = onReadOpusDataFromOpusDataFeed(env, &encDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
 		ogg_sync_wrote(&oy,bytes);
-		/* Get the first page. */
-		LOGD(LOG_TAG, "Getting the first page, read (%d) bytes", bytes);
 
-		if(ogg_stream_packetout(&os,&op)!=1){
-			/* no page? must not be vorbis */
-			onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-			return ERROR_READING_INITIAL_HEADER_PACKET;
+		if (!frame_size) /* already have decoded frame */
+		{
+			if (proccessing_page) {
+				if (ogg_stream_packetout(&os, &op) == 1) {
+
+					LOGD(LOG_TAG, "ogg stream: bytes=%d bos=%d hasopusstream=%d",
+							op.bytes, op.b_o_s, has_opus_stream);
+
+					/*OggOpus streams are identified by a magic string in the initial
+					 stream header.*/
+					if (op.b_o_s && op.bytes >= 8 && !memcmp(op.packet, "OpusHead", 8)) {
+						if (!has_opus_stream) {
+							opus_serialno = os.serialno;
+							has_opus_stream = 1;
+							link_out = 0;
+							packet_count = 0;
+							eos = 0;
+							total_links++;
+							LOGE(LOG_TAG, "header found:%d" , opus_serialno);
+						} else {
+							//LOGE(LOG_TAG, "Warning: ignoring opus stream %ld", os->serialno);
+							LOGE(LOG_TAG, "ignoring opus stream");
+						}
+					}
+					if (!has_opus_stream || os.serialno != opus_serialno) {
+						LOGE(LOG_TAG, "not has_opus_stream OR  os->serialno not opus_serialno");
+						//onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+						//return NOT_OPUS_HEADER; // TODO: check error
+					}
+
+					/*If first packet in a logical stream, process the Opus header*/
+					if (packet_count == 0) {
+						LOGD(LOG_TAG, "prepare to process header");
+
+						st = process_header(&op, &rate, &channels, &preskip, quiet);
+						if (!st) {
+							LOGE(LOG_TAG, "invalid header - unable to process what we got");
+
+							onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+							return NOT_OPUS_HEADER;
+						}
+						// prepare to decode, no comments yet
+						onStart(env, &encDataFeed, &startMethodId, rate, channels, "");// vi.rate, vi.channels, vc.vendor);
+
+						channel_count = channels;
+
+						if (ogg_stream_packetout(&os, &op) != 0 || og.header[og.header_len - 1] == 255) {
+							/*The format specifies that the initial header and tags packets are on their
+							 own pages. To aid implementors in discovering that their files are wrong
+							 we reject them explicitly here. In some player designs files like this would
+							 fail even without an explicit test.*/
+							LOGE(LOG_TAG, "Extra packets on initial header page. Invalid stream.");
+							onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+							return NOT_OPUS_HEADER;
+						}
+
+						/*Remember how many samples at the front we were told to skip
+						 so that we can adjust the timestamp counting.
+						 Allocate the output buffer */
+						gran_offset = preskip;
+						if (end_granule < gran_offset) {
+							//exit(1);
+							LOGE(LOG_TAG, "granule error - check this");
+							onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+							return NOT_OPUS_HEADER;
+						}
+						mstime_max = (end_granule - gran_offset) / (rate / 1000);
+						//output = user_malloc(sizeof(opus_int16) * MAX_FRAME_SIZE * channels);
+						output = (opus_int16 *)malloc(sizeof(opus_int16) * MAX_FRAME_SIZE * channels);
+						if (!output) {
+							// fatal error, can't allocate memory for decoding
+							LOGE(LOG_TAG, "fatal error no memory for decoding");
+							onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+							return NOT_OPUS_HEADER;
+						}
+					} else if (packet_count == 1) {
+						// read additional data from header
+						// if (!quiet) print_comments(psDecoderContext, (char*) op.packet, op.bytes);
+					} else {
+						int ret;
+
+						/*End of stream condition*/
+						if (op.e_o_s && os.serialno == opus_serialno)
+							eos = 1; /* don't care for anything except opus eos */
+
+						ret = opus_decode(st, (unsigned char*) op.packet,
+								op.bytes, output, MAX_FRAME_SIZE, 0);
+
+						/*If the decoder returned less than zero, we have an error.*/
+						if (ret < 0) {
+							LOGE(LOG_TAG,"Decoding error: %s", opus_strerror(ret));
+							onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+							return PREMATURE_END_OF_FILE;
+						}
+
+						frame_size = ret;
+
+						/*This handles making sure that our output duration respects
+						 the final end-trim by not letting the output sample count
+						 get ahead of the granpos indicated value.*/
+						maxout = ((page_granule - gran_offset) * rate / 48000) - link_out;
+					}
+					packet_count++;
+				} // stream packet out 1
+				else {
+					/* End of packets in page */
+					proccessing_page = 0;
+				}
+			} //if processing page
+
+			/*We're done*/
+			if (eos) {
+				has_opus_stream = 0;
+			} else {
+				LOGD(LOG_TAG, "NOT EOS");
+
+				if (!proccessing_page && ogg_sync_pageout(&oy, &og) == 0) {
+					if (stream_init == 0) {
+						ogg_stream_init(&os, ogg_page_serialno(&og));
+						stream_init = 1;
+					}
+					if (ogg_page_serialno(&og) != os.serialno) {
+						/* so all streams are read. */
+						LOGD(LOG_TAG, "reset serial no");
+
+						ogg_stream_reset_serialno(&os, ogg_page_serialno(&og));
+					}
+					/*Add page to the bitstream*/
+					ogg_stream_pagein(&os, &og);
+
+					page_granule = ogg_page_granulepos(&og);
+					LOGD(LOG_TAG, "starting to process this new page: sn=%d bos=%d", os.serialno, os.b_o_s);
+
+					proccessing_page = 1;
+				} else {
+					LOGD(LOG_TAG, "NEED MORE DATA");
+
+				}
+			} // check we're done
 		}
+    } // have frame
 
-		LOGD(LOG_TAG, "packets:%d %d", op.bytes, op.packetno);
 
-		if (1) {
-			if(ogg_sync_pageout(&oy,&og) != 1) {
-				/* have we simply run out of data?  If so, we're done. */
-				if(bytes<BUFFER_LENGTH) break;
-				/* error case.  Must not be Opus data */
-				onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-				return INVALID_OGG_BITSTREAM;
+	/* already have decoded frame, go ahead and play */
+	if (frame_size)
+	{
+		opus_int64 outsamp;
+		//outsamp = audio_write(p); // write decoded data to audio tracker
+		//link_out += outsamp;
+		//audio_size += outsamp;
+		//mstime_curr = audio_size / (rate / 1000);
+		LOGE(LOG_TAG, "play:%d", frame_size);
+		frame_size = 0; /* we have consumed that last decoded frame */
+
+		/*if (f_eof(&file)) {
+			trace("\rDecoding complete.        \n");
+			//Did we make it to the end without recovering ANY opus logical streams?
+			if (!p->total_links) {
+				trace("This doesn't look like a Opus file\n");
 			}
-			LOGI(LOG_TAG, "Successfully fetched the first page");
+			f_close(&p->file);
+			Player_AsyncCommand(PC_NEXT, 0);
+		}*/
 
-			/* Get the serial number and set up the rest of decode. */
-			/* serialno first; use it to set up a logical stream */
-			ogg_stream_init(&os,ogg_page_serialno(&og));
+	}
+	// TODO: where do we break??
 
-			if(ogg_stream_pagein(&os,&og) < 0) {
-				// error; stream version mismatch perhaps
-				onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-				return ERROR_READING_FIRST_PAGE;
-			}
-			stream_init = 1;
-		}
-
-
-
-
-		if (!proccessing_page) {
-			proccessing_page = 1;
-			LOGE(LOG_TAG,"checking header");
-			/*OggOpus streams are identified by a magic string in the initial  stream header.*/
-			if (op.b_o_s && op.bytes >= 8 && !memcmp(op.packet, "OpusHead", 8))
-			{
-				packet_count = 0;
-				eos = 0;
-				opus_serialno = os.serialno;
-				has_opus_stream = 1;
-				LOGD(LOG_TAG, "Header received, stream serial number: %d packetno: %d" , os.serialno, op.packetno);
-			}
-
-			/* Discard packets with the wrong serial no */
-			if (!has_opus_stream && os.serialno != opus_serialno) {
-				onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-				return NOT_OPUS_HEADER;
-			}
-
-			st = process_header(&op, &rate, &channels, &preskip, quiet);
-
-			// os, og, op
-			//  ogg_stream_state os; /* take physical pages, weld into a logical stream of packets */
-			//   ogg_page         og; /* one Ogg bitstream page. Opus packets are inside */
-			//   ogg_packet       op; /* one raw packet of data for decode */
-			LOGI(LOG_TAG, "Data: %d %d %d %d", rate, channels, preskip, quiet);
-
-			onStart(env, &encDataFeed, &startMethodId, rate, channels, "opus");
-		}
-
-
-    }
     /* OK, clean up the framer */
     ogg_sync_clear(&oy);
 
