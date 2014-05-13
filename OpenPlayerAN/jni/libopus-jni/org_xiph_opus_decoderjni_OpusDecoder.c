@@ -8,7 +8,7 @@ to end. */
 #define INVALID_OGG_BITSTREAM -21
 #define ERROR_READING_FIRST_PAGE -22
 #define ERROR_READING_INITIAL_HEADER_PACKET -23
-#define NOT_VORBIS_HEADER -24
+#define NOT_OPUS_HEADER -24
 #define CORRUPT_SECONDARY_HEADER -25
 #define PREMATURE_END_OF_FILE -26
 #define SUCCESS 0
@@ -146,8 +146,8 @@ static OpusDecoder *process_header(ogg_packet *op, int *rate, int *channels, int
 	if (opus_header_parse(op->packet, op->bytes, &header) == 0) {
 		LOGE(LOG_TAG, "Cannot parse header");
 		return NULL;
-	}
-	LOGD(LOG_TAG, "header details: ch:%d samplerate:%d", header.channels, header.input_sample_rate);
+	} else
+		LOGD(LOG_TAG, "header details: ch:%d samplerate:%d", header.channels, header.input_sample_rate);
 	*channels = header.channels;
 
 	if (!*rate) *rate = header.input_sample_rate;
@@ -223,200 +223,138 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
     ogg_page         og; /* one Ogg bitstream page. Opus packets are inside */
     ogg_packet       op; /* one raw packet of data for decode */
     
-   // vorbis_info      vi; /* struct that stores all the static vorbis bitstream settings */
-   // vorbis_comment   vc; /* struct that stores all the bitstream user comments */
-   // vorbis_dsp_state vd; /* central working state for the packet->PCM decoder */
-   // vorbis_block     vb; /* local working space for packet->PCM decode */
     // OPUS stuff
-    ogg_int64_t  packet_count = 0;
-    long opus_serialno;
-    int has_opus_stream = 0;
-    OpusDecoder *st;
-    int channels;
-    int rate;
-    int preskip;
-    int quiet;
+
 
     char *buffer;
     int  bytes;
-    
+
     /********** Decode setup ************/
 
-    //Notify the decode feed we are starting to initialize
-    onStartReadingHeader(env, &encDataFeed, &startReadingHeaderMethodId);
     
-    ogg_sync_init(&oy); /* Now we can read pages */
-    
-    //
+
+    /* 20ms at 48000, TODO 120ms */
+    #define MAX_FRAME_SIZE      960
+    #define OPUS_STACK_SIZE     31684 /**/
+
+    /* global data */
+    opus_int16 *output;
+    int frame_size =0;
+    OpusDecoder *st = NULL;
+    opus_int64 packet_count;
+	int total_links =0;
+	int stream_init = 0;
+	int quiet = 0;
+	ogg_int64_t page_granule;
+	ogg_int64_t end_granule;
+	ogg_int64_t link_out;
+	int eos = 0;
+	ogg_int64_t audio_size;
+	double last_coded_seconds;
+	int channels = 0;
+	int rate = 0;
+	int preskip = 0;
+	int gran_offset = 0;
+	int has_opus_stream = 0;
+	ogg_int32_t opus_serialno;
+	int proccessing_page = 0;
+	int seeking;
+	opus_int64 maxout;
+	void *ogg_buf;
+	int ogg_buf_size;
+	// decode: metadata
+	int channel_count = 0;
+	int bitrate;
+	//
+	int mstime_max, mstime_curr, time_curr;
+	//
+	char title[40];
+	char artist[40];
+	char album[40];
+	char notes[128];
+	char year[5];
+	//
+	char error_string[128];
+	//
+	//Notify the decode feed we are starting to initialize
+	onStartReadingHeader(env, &encDataFeed, &startReadingHeaderMethodId);
+	ogg_sync_init(&oy); /* Now we can read pages */
+	//
     while(1) {
-    	LOGE(LOG_TAG, "start while 1");
-        /* we repeat if the bitstream is chained */
-        int eos=0;
-        int i;
-        
-        /* grab some data at the head of the stream. We want the first page
+    	/* grab some data at the head of the stream. We want the first page
         (which is guaranteed to be small and only contain the Opus
         stream initial header) We need the first page to get the stream
         serialno - similar to Vorbis logic */
+    	// READ DATA
+		/* submit a 4k block to libopus' Ogg layer */
+		LOGI(LOG_TAG, "Submitting 4k block");
+		buffer = ogg_sync_buffer(&oy,BUFFER_LENGTH);
+		bytes = onReadOpusDataFromOpusDataFeed(env, &encDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
+		ogg_sync_wrote(&oy,bytes);
+		/* Get the first page. */
+		LOGD(LOG_TAG, "Getting the first page, read (%d) bytes", bytes);
 
-        // READ DATA
-        /* submit a 4k block to libopus' Ogg layer */
-        LOGI(LOG_TAG, "Submitting 1 4k block");
-        buffer = ogg_sync_buffer(&oy,BUFFER_LENGTH);
-        bytes = onReadOpusDataFromOpusDataFeed(env, &encDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
-        ogg_sync_wrote(&oy,bytes);
-        /* Get the first page. */
-        LOGD(LOG_TAG, "Getting the first page, read (%d) bytes", bytes);
-        if(ogg_sync_pageout(&oy,&og)!=1) {
-        	/* have we simply run out of data?  If so, we're done. */
-            if(bytes<BUFFER_LENGTH) break;
-            /* error case.  Must not be Opus data */
-            onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-            return INVALID_OGG_BITSTREAM;
-        }
-        LOGI(LOG_TAG, "Successfully fetched the first page");
+		if (1) {
+			if(ogg_sync_pageout(&oy,&og) != 1) {
+				/* have we simply run out of data?  If so, we're done. */
+				if(bytes<BUFFER_LENGTH) break;
+				/* error case.  Must not be Opus data */
+				onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+				return INVALID_OGG_BITSTREAM;
+			}
+			LOGI(LOG_TAG, "Successfully fetched the first page");
 
-        /* Get the serial number and set up the rest of decode. */
-        /* serialno first; use it to set up a logical stream */
-        ogg_stream_init(&os,ogg_page_serialno(&og));
+			/* Get the serial number and set up the rest of decode. */
+			/* serialno first; use it to set up a logical stream */
+			ogg_stream_init(&os,ogg_page_serialno(&og));
 
-        /* extract the initial header from the first page and verify that the
-        Ogg bitstream is in fact Opus data */
-
-        /* I handle the initial header first instead of just having the code
-        read all TWO Opus headers at once because reading the initial
-        header is an easy way to identify a Opus bitstream and it's
-        useful to see that functionality separated out. */
-
-        /*
-         * vorbis_info_init(&vi);
-        vorbis_comment_init(&vc);
-        */
-        if(ogg_stream_pagein(&os,&og) < 0){
-            // error; stream version mismatch perhaps
-            onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-            return ERROR_READING_FIRST_PAGE;
-        }
-
-
-        if(ogg_stream_packetout(&os,&op)!=1){
-            /* no page? must not be vorbis */
-            onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-            return ERROR_READING_INITIAL_HEADER_PACKET;
-        }
-
-        /*OggOpus streams are identified by a magic string in the initial  stream header.*/
-		if (op.b_o_s && op.bytes >= 8 && !memcmp(op.packet, "OpusHead", 8))
-		{
-			packet_count = 0;
-			eos = 0;
-			opus_serialno = os.serialno;
-			has_opus_stream = 1;
-			LOGD(LOG_TAG, "Header received, stream serial number: %d" , op.packetno);
+			if(ogg_stream_pagein(&os,&og) < 0){
+				// error; stream version mismatch perhaps
+				onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+				return ERROR_READING_FIRST_PAGE;
+			}
+			stream_init = 1;
 		}
 
-		/* Discard packets with the wrong serial no */
-		if (!has_opus_stream && os.serialno != opus_serialno) {
+
+		if(ogg_stream_packetout(&os,&op)!=1){
+			/* no page? must not be vorbis */
 			onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-			return NOT_VORBIS_HEADER;
+			return ERROR_READING_INITIAL_HEADER_PACKET;
 		}
 
-		st = process_header(&op, &rate, &channels, &preskip, quiet);
+		LOGD(LOG_TAG, "packets:%d %d", op.bytes, op.packetno);
 
-        // os, og, op
-        //  ogg_stream_state os; /* take physical pages, weld into a logical stream of packets */
-        //   ogg_page         og; /* one Ogg bitstream page. Opus packets are inside */
-        //   ogg_packet       op; /* one raw packet of data for decode */
-        LOGI(LOG_TAG, "Data: %d %d %d %d", rate, channels, preskip, quiet);
+		if (!proccessing_page) {
+			proccessing_page = 1;
+			LOGE(LOG_TAG,"checking header");
+			/*OggOpus streams are identified by a magic string in the initial  stream header.*/
+			if (op.b_o_s && op.bytes >= 8 && !memcmp(op.packet, "OpusHead", 8))
+			{
+				packet_count = 0;
+				eos = 0;
+				opus_serialno = os.serialno;
+				has_opus_stream = 1;
+				LOGD(LOG_TAG, "Header received, stream serial number: %d packetno: %d" , os.serialno, op.packetno);
+			}
 
+			/* Discard packets with the wrong serial no */
+			if (!has_opus_stream && os.serialno != opus_serialno) {
+				onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+				return NOT_OPUS_HEADER;
+			}
 
-        /*if(vorbis_synthesis_headerin(&vi,&vc,&op)<0){
-            // error case; not a vorbis header
-            onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-            return NOT_VORBIS_HEADER;
-        }*/
+			st = process_header(&op, &rate, &channels, &preskip, quiet);
 
+			// os, og, op
+			//  ogg_stream_state os; /* take physical pages, weld into a logical stream of packets */
+			//   ogg_page         og; /* one Ogg bitstream page. Opus packets are inside */
+			//   ogg_packet       op; /* one raw packet of data for decode */
+			LOGI(LOG_TAG, "Data: %d %d %d %d", rate, channels, preskip, quiet);
 
-        /* At this point, we're sure we're Opus. We've set up the logical
-        (Ogg) bitstream decoder. Get the comment and codebook headers and
-        set up the Opus decoder */
+			onStart(env, &encDataFeed, &startMethodId, rate, channels, "opus");
+		}
 
-        /* The next two packets in order are the comment and codebook headers.
-        They're likely large and may span multiple pages. Thus we read
-        and submit data until we get our two packets, watching that no
-        pages are missing. If a page is missing, error out; losing a
-        header page is the only place where missing data is fatal. */
-
-        i=0;
-        while(i<2){
-        	LOGE(LOG_TAG, "start while 2");
-            while(i<2){
-            	LOGE(LOG_TAG, "start while 3");
-                int result=ogg_sync_pageout(&oy,&og);
-                if(result==0)break; /* Need more data */
-                /* Don't complain about missing or corrupt data yet. We'll
-                catch it at the packet output phase */
-                if(result==1){
-                    ogg_stream_pagein(&os,&og); /* we can ignore any errors here
-                    as they'll also become apparent
-                    at packetout */
-                    while(i<2){
-                    	LOGE(LOG_TAG, "start while 4");
-                        result=ogg_stream_packetout(&os,&op);
-                        if(result==0)break;
-                        if(result<0){
-                            /* data at some point was corrupted or missing!
-                            We can't tolerate that in a header.  Die. */
-                            onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-                            return CORRUPT_SECONDARY_HEADER;
-                        }
-                        LOGI(LOG_TAG, "Init header 2");
-                        /*result=vorbis_synthesis_headerin(&vi,&vc,&op);
-                        if(result<0){
-                            onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-                            return CORRUPT_SECONDARY_HEADER;
-                        }*/
-
-                        i++;
-                    }
-                }
-            }
-
-            //READ DATA
-            /* no harm in not checking before adding more */
-            buffer=ogg_sync_buffer(&oy,BUFFER_LENGTH);
-            bytes=onReadOpusDataFromOpusDataFeed(env, &encDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
-            if(bytes==0 && i<2){
-                onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-                return PREMATURE_END_OF_FILE;
-            }
-            ogg_sync_wrote(&oy,bytes);
-        }
-
-
-        /* Throw the comments plus a few lines about the bitstream we're
-        decoding */
-        {
-           /* char **ptr=vc.user_comments;
-            while(*ptr){
-                ++ptr;
-            }
-
-            LOGI(LOG_TAG, "Bitstream is %d channel",vi.channels);
-            LOGI(LOG_TAG, "Bitstream %d Hz",vi.rate);
-            LOGI(LOG_TAG, "Encoded by: %s\n\n",vc.vendor);*/
-            // report stream parameters
-            onStart(env, &encDataFeed, &startMethodId, 0,0,"");// vi.rate, vi.channels, vc.vendor);
-        }
-
-        //convsize=BUFFER_LENGTH/vi.channels;
-
-        /* OK, got and parsed all three headers. Initialize the Opus
-        packet->PCM decoder. */
-        LOGD(LOG_TAG, "Headers parsed, go for PCM decoding");
-
-
-        ogg_stream_clear(&os);
 
     }
     /* OK, clean up the framer */

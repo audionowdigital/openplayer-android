@@ -188,20 +188,14 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
         // READ DATA
         /* submit a 4k block to libvorbis' Ogg layer */
         LOGI(LOG_TAG, "Submitting 1 4k block to libvorbis' Ogg layer");
-        LOGI(LOG_TAG, "Submitting 2 4k block %d %d", oy.headerbytes, oy.bodybytes);
-
         buffer=ogg_sync_buffer(&oy,BUFFER_LENGTH);
-        LOGI(LOG_TAG, "Submitting 3 4k block %d %d", oy.headerbytes, oy.bodybytes);
-
         bytes=onReadVorbisDataFromVorbisDataFeed(env, &vorbisDataFeed, &readVorbisDataMethodId, buffer, &jByteArrayReadBuffer);
         ogg_sync_wrote(&oy,bytes);
-        LOGI(LOG_TAG, "Submitting  4 4k block %d %d", oy.headerbytes, oy.bodybytes);
         
         /* Get the first page. */
         LOGD(LOG_TAG, "Getting the first page, read (%d) bytes", bytes);
         if(ogg_sync_pageout(&oy,&og)!=1){
         	/* have we simply run out of data?  If so, we're done. */
-
             if(bytes<BUFFER_LENGTH)break;
             /* error case.  Must not be Vorbis data */
             onStopDecodeFeed(env, &vorbisDataFeed, &stopMethodId);
@@ -230,20 +224,17 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
             return ERROR_READING_FIRST_PAGE;
         }
 
-
         if(ogg_stream_packetout(&os,&op)!=1){
             /* no page? must not be vorbis */
             onStopDecodeFeed(env, &vorbisDataFeed, &stopMethodId);
             return ERROR_READING_INITIAL_HEADER_PACKET;
         }
 
-
         if(vorbis_synthesis_headerin(&vi,&vc,&op)<0){
             /* error case; not a vorbis header */
             onStopDecodeFeed(env, &vorbisDataFeed, &stopMethodId);
             return NOT_VORBIS_HEADER;
         }
-
 
         /* At this point, we're sure we're Vorbis. We've set up the logical
         (Ogg) bitstream decoder. Get the comment and codebook headers and
@@ -256,19 +247,19 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
         header page is the only place where missing data is fatal. */
 
         i=0;
-        while(i<2){
+        while (i<2) {
         	LOGE(LOG_TAG, "start while 2");
-            while(i<2){
+            while (i<2) {
             	LOGE(LOG_TAG, "start while 3");
                 int result=ogg_sync_pageout(&oy,&og);
-                if(result==0)break; /* Need more data */
+                if (result==0) break; /* Need more data */
                 /* Don't complain about missing or corrupt data yet. We'll
                 catch it at the packet output phase */
                 if(result==1){
                     ogg_stream_pagein(&os,&og); /* we can ignore any errors here
                     as they'll also become apparent
                     at packetout */
-                    while(i<2){
+                    while (i<2) {
                     	LOGE(LOG_TAG, "start while 4");
                         result=ogg_stream_packetout(&os,&op);
                         if(result==0)break;
@@ -317,8 +308,7 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
 
         convsize=BUFFER_LENGTH/vi.channels;
 
-        /* OK, got and parsed all three headers. Initialize the Vorbis
-        packet->PCM decoder. */
+        /* OK, got and parsed all three headers. Initialize the Vorbis packet->PCM decoder. */
         LOGD(LOG_TAG, "Headers parsed, go for PCM decoding");
         if(vorbis_synthesis_init(&vd,&vi)==0){
             /* central decode state */
