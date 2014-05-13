@@ -275,8 +275,8 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
                             return CORRUPT_SECONDARY_HEADER;
                         }
                         i++;
-                    }
-                }
+                    } // end while 4
+                }//if result==1
             } // end while 3
 
             //READ DATA
@@ -389,7 +389,7 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
                                     vorbis_synthesis_read(&vd,bout); /* tell libvorbis how many samples we actually consumed */
                                 }
                             }
-                        }
+                        } // while 7
                         if(ogg_page_eos(&og))eos=1;
                     }
                 } // WHILE 6
@@ -411,7 +411,7 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
             vorbis_block_clear(&vb);
             vorbis_dsp_clear(&vd);
 
-        }
+        } // vorbis synthesis init
         else{
             LOGW(LOG_TAG, "Error: Corrupt header during playback initialization.");
         }

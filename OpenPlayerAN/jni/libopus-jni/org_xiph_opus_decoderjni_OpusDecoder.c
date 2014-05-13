@@ -39,9 +39,9 @@ void onStopDecodeFeed(JNIEnv *env, jobject* encDataFeed, jmethodID* stopMethodId
 //Reads raw vorbis data from the jni callback
 int onReadOpusDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID* readOpusDataMethodId, char* buffer, jbyteArray* jByteArrayReadBuffer) {
     //Call the read method
-	LOGI(LOG_TAG, "onReadOpusDataFromOpusDataFeed call.");
+	//LOGI(LOG_TAG, "onReadOpusDataFromOpusDataFeed call.");
     int readByteCount = (*env)->CallIntMethod(env, (*encDataFeed), (*readOpusDataMethodId), (*jByteArrayReadBuffer), BUFFER_LENGTH);
-    LOGI(LOG_TAG, "onReadOpusDataFromOpusDataFeed method called %d", readByteCount);
+    //LOGI(LOG_TAG, "onReadOpusDataFromOpusDataFeed method called %d", readByteCount);
     //Don't bother copying, just return 0
     if(readByteCount == 0) {
         return 0;
@@ -60,7 +60,8 @@ int onReadOpusDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID*
 
 //Writes the pcm data to the Java layer
 void onWritePCMDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID* writePCMDataMethodId, ogg_int16_t* buffer, int bytes, jshortArray* jShortArrayWriteBuffer) {
-    
+
+    LOGE(LOG_TAG, "call write pcm 1");
     //No data to read, just exit
     if(bytes == 0) {
         return;
@@ -70,6 +71,7 @@ void onWritePCMDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID
     //Copy the contents of what we're writing to the java short array
     (*env)->SetShortArrayRegion(env, (*jShortArrayWriteBuffer), 0, bytes, (jshort *)buffer);
     
+    LOGE(LOG_TAG, "call write pcm 2");
     //Call the write pcm data method
     (*env)->CallVoidMethod(env, (*encDataFeed), (*writePCMDataMethodId), (*jShortArrayWriteBuffer), bytes);
 }
@@ -206,7 +208,6 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
     //-- get Java layer method pointer --//
 	jclass encDataFeedClass = (*env)->FindClass(env, "org/xiph/opus/decoderjni/DecodeFeed");
 
-
 	//Find our java method id's we'll be calling
 	jmethodID readOpusDataMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onReadOpusData", "([BI)I");
 	jmethodID writePCMDataMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onWritePCMData", "([SI)V");
@@ -230,13 +231,6 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
     int  bytes;
 
     /********** Decode setup ************/
-
-    //Notify the decode feed we are starting to initialize
-    onStartReadingHeader(env, &encDataFeed, &startReadingHeaderMethodId);
-    
-    ogg_sync_init(&oy); /* Now we can read pages */
-    
-
     /* 20ms at 48000, TODO 120ms */
     #define MAX_FRAME_SIZE      960
     #define OPUS_STACK_SIZE     31684 /**/
@@ -249,26 +243,26 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 	int total_links =0;
 	int stream_init = 0;
 	int quiet = 0;
-	ogg_int64_t page_granule;
-	ogg_int64_t end_granule;
-	ogg_int64_t link_out;
+	ogg_int64_t page_granule = 0;
+	ogg_int64_t end_granule = 0;
+	ogg_int64_t link_out = 0;
 	int eos = 0;
-	ogg_int64_t audio_size;
+	ogg_int64_t audio_size = 0;
 	double last_coded_seconds;
 	int channels = 0;
 	int rate = 0;
 	int preskip = 0;
 	int gran_offset = 0;
 	int has_opus_stream = 0;
-	ogg_int32_t opus_serialno;
-	int proccessing_page;
-	int seeking;
-	opus_int64 maxout;
+	ogg_int32_t opus_serialno = 0;
+	int proccessing_page = 0;
+	int seeking = 0;
+	opus_int64 maxout = 0;
 	void *ogg_buf;
-	int ogg_buf_size;
+	int ogg_buf_size = 0;
 	// decode: metadata
 	int channel_count = 0;
-	int bitrate;
+	int bitrate = 0;
 	//
 	int mstime_max, mstime_curr, time_curr;
 	//
@@ -281,7 +275,10 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 	char error_string[128];
 	//
     //
-    while(1) {
+	//Notify the decode feed we are starting to initialize
+	onStartReadingHeader(env, &encDataFeed, &startReadingHeaderMethodId);
+	ogg_sync_init(&oy); /* Now we can read pages */
+	while(1) {
     	/* grab some data at the head of the stream. We want the first page
         (which is guaranteed to be small and only contain the Opus
         stream initial header) We need the first page to get the stream
@@ -289,10 +286,16 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 
     	// READ DATA
 		/* submit a 4k block to libopus' Ogg layer */
-		LOGI(LOG_TAG, "Submitting 1 4k block");
+		//LOGI(LOG_TAG, "Submitting 1 4k block");
 		buffer = ogg_sync_buffer(&oy,BUFFER_LENGTH);
 		bytes = onReadOpusDataFromOpusDataFeed(env, &encDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
 		ogg_sync_wrote(&oy,bytes);
+		if (bytes > 0)
+				LOGE(LOG_TAG, "%d bytes, frames:%d processingp:%d packetcount:%d", bytes, frame_size, proccessing_page);
+		else { //we are done
+			 onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+			 return PREMATURE_END_OF_FILE;
+		}
 
 		if (!frame_size) /* already have decoded frame */
 		{
@@ -354,11 +357,12 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 						 so that we can adjust the timestamp counting.
 						 Allocate the output buffer */
 						gran_offset = preskip;
+						LOGE(LOG_TAG,"check granule: %d %d", gran_offset, end_granule);
 						if (end_granule < gran_offset) {
 							//exit(1);
 							LOGE(LOG_TAG, "granule error - check this");
-							onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-							return NOT_OPUS_HEADER;
+							//onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+							//return NOT_OPUS_HEADER;
 						}
 						mstime_max = (end_granule - gran_offset) / (rate / 1000);
 						//output = user_malloc(sizeof(opus_int16) * MAX_FRAME_SIZE * channels);
@@ -370,11 +374,12 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 							return NOT_OPUS_HEADER;
 						}
 					} else if (packet_count == 1) {
+						LOGE(LOG_TAG, "read comments here - additional data from header");
 						// read additional data from header
 						// if (!quiet) print_comments(psDecoderContext, (char*) op.packet, op.bytes);
 					} else {
 						int ret;
-
+						LOGE(LOG_TAG, "go for decode:");
 						/*End of stream condition*/
 						if (op.e_o_s && os.serialno == opus_serialno)
 							eos = 1; /* don't care for anything except opus eos */
@@ -388,7 +393,7 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 							onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
 							return PREMATURE_END_OF_FILE;
 						}
-
+						LOGE(LOG_TAG, "decoded:%d from %d", ret, op.bytes);
 						frame_size = ret;
 
 						/*This handles making sure that our output duration respects
@@ -410,8 +415,9 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 			} else {
 				LOGD(LOG_TAG, "NOT EOS");
 
-				if (!proccessing_page && ogg_sync_pageout(&oy, &og) == 0) {
+				if (!proccessing_page && ogg_sync_pageout(&oy, &og) == 1) {
 					if (stream_init == 0) {
+						LOGD(LOG_TAG, "stream_init");
 						ogg_stream_init(&os, ogg_page_serialno(&og));
 						stream_init = 1;
 					}
@@ -434,31 +440,48 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 				}
 			} // check we're done
 		}
-    } // have frame
 
 
-	/* already have decoded frame, go ahead and play */
-	if (frame_size)
-	{
-		opus_int64 outsamp;
-		//outsamp = audio_write(p); // write decoded data to audio tracker
-		//link_out += outsamp;
-		//audio_size += outsamp;
-		//mstime_curr = audio_size / (rate / 1000);
-		LOGE(LOG_TAG, "play:%d", frame_size);
-		frame_size = 0; /* we have consumed that last decoded frame */
+		/* already have decoded frame, go ahead and play */
+		if (frame_size)
+		{
+			//opus_int64 outsamp;
+			//outsamp = audio_write(p); // write decoded data to audio tracker
+			//link_out += outsamp;
+			//audio_size += outsamp;
+			//mstime_curr = audio_size / (rate / 1000);
+			LOGE(LOG_TAG, "play:%d", frame_size);
+			frame_size = 0; /* we have consumed that last decoded frame */
 
-		/*if (f_eof(&file)) {
-			trace("\rDecoding complete.        \n");
-			//Did we make it to the end without recovering ANY opus logical streams?
-			if (!p->total_links) {
-				trace("This doesn't look like a Opus file\n");
+			int i = 0, j = 0;
+
+			for(i=0;i<channels;i++){
+				ogg_int16_t *ptr=convbuffer+i;
+				float  *mono = output;
+				for(j=0;j<frame_size;j++){
+					int val=floor(mono[j]*32767.f+.5f);
+					// might as well guard against clipping
+					if(val>32767) { val=32767; ; }
+					if(val<-32768) { val=-32768;; }
+					*ptr=val;
+					ptr+=channels;
+				}
 			}
-			f_close(&p->file);
-			Player_AsyncCommand(PC_NEXT, 0);
-		}*/
+			onWritePCMDataFromOpusDataFeed(env, &encDataFeed, &writePCMDataMethodId, output, frame_size, &jShortArrayWriteBuffer);
 
-	}
+
+			/*if (f_eof(&file)) {
+				trace("\rDecoding complete.        \n");
+				//Did we make it to the end without recovering ANY opus logical streams?
+				if (!p->total_links) {
+					trace("This doesn't look like a Opus file\n");
+				}
+				f_close(&p->file);
+				Player_AsyncCommand(PC_NEXT, 0);
+			}*/
+
+		}
+	} // big while loop
 	// TODO: where do we break??
 
     /* OK, clean up the framer */
