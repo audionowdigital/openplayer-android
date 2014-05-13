@@ -371,23 +371,10 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
                                         ogg_int16_t *ptr=convbuffer+i;
                                         float  *mono=pcm[i];
                                         for(j=0;j<bout;j++){
-
-                                            #if 1
                                             int val=floor(mono[j]*32767.f+.5f);
-                                            #else /* optional dither */
-                                            int val=mono[j]*32767.f+drand48()-0.5f;
-                                            #endif
                                             /* might as well guard against clipping */
-                                            if(val>32767){
-                                                val=32767;
-                                                clipflag=1;
-                                            }
-
-                                            if(val<-32768){
-                                                val=-32768;
-                                                clipflag=1;
-                                            }
-
+                                            if(val>32767) { val=32767; clipflag=1; }
+                                            if(val<-32768) { val=-32768; clipflag=1; }
                                             *ptr=val;
                                             ptr+=vi.channels;
                                         }
@@ -397,19 +384,15 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
                                         LOGI(LOG_TAG, "Clipping in frame %ld\n",(long)(vd.sequence));
                                     }
 
-                                    /*
-                                     * Call decodefeed to push data to AudioTrack
-                                     */
-                                    onWritePCMDataFromVorbisDataFeed(env, &vorbisDataFeed, &writePCMDataMethodId,
-                                    		&convbuffer[0], bout*vi.channels, &jShortArrayWriteBuffer);
-
+                                    /* Call decodefeed to push data to AudioTrack */
+                                    onWritePCMDataFromVorbisDataFeed(env, &vorbisDataFeed, &writePCMDataMethodId, &convbuffer[0], bout*vi.channels, &jShortArrayWriteBuffer);
                                     vorbis_synthesis_read(&vd,bout); /* tell libvorbis how many samples we actually consumed */
                                 }
                             }
                         }
                         if(ogg_page_eos(&og))eos=1;
                     }
-                }
+                } // WHILE 6
 
                 // content player read
                 if(!eos){
@@ -421,7 +404,7 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
                     // ending condition if no more data available
                     if(bytes==0) eos=1;
                 }
-            }
+            } // while 5
 
             /* ogg_page and ogg_packet structs always point to storage in
             libvorbis.  They're never freed or manipulated directly */

@@ -294,6 +294,14 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 		/* Get the first page. */
 		LOGD(LOG_TAG, "Getting the first page, read (%d) bytes", bytes);
 
+		if(ogg_stream_packetout(&os,&op)!=1){
+			/* no page? must not be vorbis */
+			onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+			return ERROR_READING_INITIAL_HEADER_PACKET;
+		}
+
+		LOGD(LOG_TAG, "packets:%d %d", op.bytes, op.packetno);
+
 		if (1) {
 			if(ogg_sync_pageout(&oy,&og) != 1) {
 				/* have we simply run out of data?  If so, we're done. */
@@ -308,7 +316,7 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 			/* serialno first; use it to set up a logical stream */
 			ogg_stream_init(&os,ogg_page_serialno(&og));
 
-			if(ogg_stream_pagein(&os,&og) < 0){
+			if(ogg_stream_pagein(&os,&og) < 0) {
 				// error; stream version mismatch perhaps
 				onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
 				return ERROR_READING_FIRST_PAGE;
@@ -317,13 +325,7 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 		}
 
 
-		if(ogg_stream_packetout(&os,&op)!=1){
-			/* no page? must not be vorbis */
-			onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-			return ERROR_READING_INITIAL_HEADER_PACKET;
-		}
 
-		LOGD(LOG_TAG, "packets:%d %d", op.bytes, op.packetno);
 
 		if (!proccessing_page) {
 			proccessing_page = 1;
