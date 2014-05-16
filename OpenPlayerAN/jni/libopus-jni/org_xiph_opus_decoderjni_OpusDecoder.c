@@ -61,7 +61,6 @@ int onReadOpusDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID*
 //Writes the pcm data to the Java layer
 void onWritePCMDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID* writePCMDataMethodId, ogg_int16_t* buffer, int bytes, jshortArray* jShortArrayWriteBuffer) {
 
-    LOGE(LOG_TAG, "call write pcm 1");
     //No data to read, just exit
     if(bytes == 0) {
         return;
@@ -71,7 +70,6 @@ void onWritePCMDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID
     //Copy the contents of what we're writing to the java short array
     (*env)->SetShortArrayRegion(env, (*jShortArrayWriteBuffer), 0, bytes, (jshort *)buffer);
     
-    LOGE(LOG_TAG, "call write pcm 2");
     //Call the write pcm data method
     (*env)->CallVoidMethod(env, (*encDataFeed), (*writePCMDataMethodId), (*jShortArrayWriteBuffer), bytes);
 }
@@ -384,8 +382,7 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 						if (op.e_o_s && os.serialno == opus_serialno)
 							eos = 1; /* don't care for anything except opus eos */
 
-						ret = opus_decode(st, (unsigned char*) op.packet,
-								op.bytes, output, MAX_FRAME_SIZE, 0);
+						ret = opus_decode(st, (unsigned char*) op.packet, op.bytes, output, MAX_FRAME_SIZE, 0);
 
 						/*If the decoder returned less than zero, we have an error.*/
 						if (ret < 0) {
@@ -451,23 +448,36 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 			//audio_size += outsamp;
 			//mstime_curr = audio_size / (rate / 1000);
 			LOGE(LOG_TAG, "play:%d", frame_size);
-			frame_size = 0; /* we have consumed that last decoded frame */
 
+			int bout=(frame_size<convsize?frame_size:convsize);
 			int i = 0, j = 0;
 
+			int mono[frame_size/2];
+			for ( i=0;i<frame_size/2;i++) {
+				int val=output[2*i];//floor(mono[j]*32767.f+.5f);
+				// might as well guard against clippin
+				if(val>32767) { val=32767; ; }
+				if(val<-32768) { val=-32768; }
+				mono[i] = val;
+			}
+			/*
 			for(i=0;i<channels;i++){
 				ogg_int16_t *ptr=convbuffer+i;
-				float  *mono = output;
-				for(j=0;j<frame_size;j++){
-					int val=floor(mono[j]*32767.f+.5f);
+				//float  *mono=pcm[i];
+				for(j=0;j<bout;j++){
+					int val=output[i];//floor(mono[j]*32767.f+.5f);
 					// might as well guard against clipping
 					if(val>32767) { val=32767; ; }
-					if(val<-32768) { val=-32768;; }
+					if(val<-32768) { val=-32768; }
 					*ptr=val;
 					ptr+=channels;
 				}
-			}
-			onWritePCMDataFromOpusDataFeed(env, &encDataFeed, &writePCMDataMethodId, output, frame_size, &jShortArrayWriteBuffer);
+			}*/
+			//onWritePCMDataFromOpusDataFeed(env, &encDataFeed, &writePCMDataMethodId, &convbuffer[0], bout*channels, &jShortArrayWriteBuffer);
+			LOGE(LOG_TAG, "2");
+			onWritePCMDataFromOpusDataFeed(env, &encDataFeed, &writePCMDataMethodId, output, 2*frame_size, &jShortArrayWriteBuffer);
+
+			frame_size = 0; /* we have consumed that last decoded frame */
 
 
 			/*if (f_eof(&file)) {

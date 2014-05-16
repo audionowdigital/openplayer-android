@@ -68,7 +68,7 @@ public class MainActivity extends Activity {
         
         final EditText et = new EditText(this);
         et.setTextSize(10);
-        et.setText("http://markosoft.ro/test.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
+        et.setText("http://test01.va.audionow.com:8000/eugen_vorbis");//http://markosoft.ro/test.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
         panelV.addView(et);
         
         b = new Button(this);
@@ -132,7 +132,7 @@ public class MainActivity extends Activity {
         //etOpus.setText("http://icecast1.pulsradio.com:80/mxHD.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
         //http:\/\/test01.va.audionow.com:8000\/eugen_opus_lo",
         //http:\/\/test01.va.audionow.com:8000\/eugen_opus_hi","type":"opus"
-        etOpus.setText("http://test01.va.audionow.com:8000/eugen_opus_lo");
+        etOpus.setText("http://test01.va.audionow.com:8000/eugen_opus");
         panelV.addView(etOpus);
         
         b = new Button(this);
@@ -148,21 +148,35 @@ public class MainActivity extends Activity {
 		});
         panelV.addView(b);
 
+        LinearLayout h = new LinearLayout(this);
+        h.setOrientation(LinearLayout.HORIZONTAL);
+        panelV.addView(h);
+        
         b = new Button(this);
-        b.setText("OPUS init with File");
+        b.setText("OPUS Init File #1");
         b.setOnClickListener(new OnClickListener() {
             @Override public void onClick(View arg0) {
                 logArea.setText("");
-                // String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
-                // String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
                 Log.d(TAG, "init with file");
-                File decodedFile = getLocalFile("test2.opus");
+                File decodedFile = getLocalFile("test4.opus");
                 InputStream decodedStream = getLocalStream(decodedFile);
                 opusPlayer.setDataSource(decodedStream, decodedFile.length());
-//                opusPlayer.setDataSource(getStreamURL(decodedStream, -1);
             }
         });
-        panelV.addView(b);
+        h.addView(b);
+        
+        b = new Button(this);
+        b.setText("OPUS Init File #2");
+        b.setOnClickListener(new OnClickListener() {
+            @Override public void onClick(View arg0) {
+                logArea.setText("");
+                Log.d(TAG, "init with file");
+                File decodedFile = getLocalFile("test5.opus");
+                InputStream decodedStream = getLocalStream(decodedFile);
+                opusPlayer.setDataSource(decodedStream, decodedFile.length());
+            }
+        });
+        h.addView(b);
 
 
         b = new Button(this);

@@ -350,17 +350,17 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
                                 float **pcm;
                                 int samples;
 
-                                if(vorbis_synthesis(&vb,&op)==0) /* test for success! */
-                                vorbis_synthesis_blockin(&vd,&vb);
-                                /*
+                                /* test for success! */
+                                if(vorbis_synthesis(&vb,&op)==0) vorbis_synthesis_blockin(&vd,&vb);
 
-                                **pcm is a multichannel float vector.  In stereo, for
+
+                                /* **pcm is a multichannel float vector.  In stereo, for
                                 example, pcm[0] is left, and pcm[1] is right.  samples is
                                 the size of each channel.  Convert the float values
                                 (-1.<=range<=1.) to whatever PCM format and write it out */
 
                                 while((samples=vorbis_synthesis_pcmout(&vd,&pcm))>0){
-                                	LOGE(LOG_TAG, "start while 8");
+                                	LOGE(LOG_TAG, "start while 8, decoding %d samples: %d convsize:%d", op.bytes,  samples, convsize);
                                     int j;
                                     int clipflag=0;
                                     int bout=(samples<convsize?samples:convsize);
@@ -368,10 +368,10 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
                                     /* convert floats to 16 bit signed ints (host order) and
                                     interleave */
                                     for(i=0;i<vi.channels;i++){
-                                        ogg_int16_t *ptr=convbuffer+i;
-                                        float  *mono=pcm[i];
+                                        ogg_int16_t *ptr = convbuffer + i;
+                                        float  *mono = pcm[i];
                                         for(j=0;j<bout;j++){
-                                            int val=floor(mono[j]*32767.f+.5f);
+                                            int val = floor(mono[j]*32767.f+.5f);
                                             /* might as well guard against clipping */
                                             if(val>32767) { val=32767; clipflag=1; }
                                             if(val<-32768) { val=-32768; clipflag=1; }
@@ -385,7 +385,7 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
                                     }
 
                                     /* Call decodefeed to push data to AudioTrack */
-                                    onWritePCMDataFromVorbisDataFeed(env, &vorbisDataFeed, &writePCMDataMethodId, &convbuffer[0], bout*vi.channels, &jShortArrayWriteBuffer);
+                                    onWritePCMDataFromVorbisDataFeed(env, &vorbisDataFeed, &writePCMDataMethodId, convbuffer, bout*vi.channels, &jShortArrayWriteBuffer);
                                     vorbis_synthesis_read(&vd,bout); /* tell libvorbis how many samples we actually consumed */
                                 }
                             }
