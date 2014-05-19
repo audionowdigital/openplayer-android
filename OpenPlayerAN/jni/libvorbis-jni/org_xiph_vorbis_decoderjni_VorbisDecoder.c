@@ -5,18 +5,15 @@ to end. */
 #include "org_xiph_vorbis_decoderjni_VorbisDecoder.h"
 
 /*Define message codes*/
-#define INVALID_OGG_BITSTREAM -21
-#define NOT_VORBIS_HEADER -24
-#define CORRUPT_HEADER -25
-#define DATA_SOURCE_FINISHED -26
-//#define PREMATURE_END_OF_FILE -26
+#define NOT_VORBIS_HEADER -1
+#define CORRUPT_HEADER -2
 #define SUCCESS 0
 
 #define VORBIS_HEADERS 3
 
 #define BUFFER_LENGTH 4096
 
-extern void _VDBG_dump(void);
+//extern void _VDBG_dump(void);
 
 int debug = 0;
 
@@ -172,153 +169,150 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
     int err = SUCCESS;
     int i;
 
+    // start source reading / decoding loop
     while (1) {
     	if (err != SUCCESS) {
-    		LOGE(LOG_TAG, "Global loop closing: %d", err);
+    		LOGE(LOG_TAG, "Global loop closing for error: %d", err);
     		break;
     	}
 
-        //2 READ DATA : submit a 4k block to libvorbis' Ogg layer
+        // READ DATA : submit a 4k block to Ogg layer
         buffer = ogg_sync_buffer(&oy,BUFFER_LENGTH);
         bytes = onReadVorbisDataFromVorbisDataFeed(env, &vorbisDataFeed, &readVorbisDataMethodId, buffer, &jByteArrayReadBuffer);
         ogg_sync_wrote(&oy,bytes);
 
+        // Check available data
         if (bytes == 0) {
-        	LOGE(LOG_TAG, "Err: data source finished.");
-        	err = DATA_SOURCE_FINISHED;
+        	LOGW(LOG_TAG, "Data source finished.");
+        	err = SUCCESS;
         	break;
         }
 
-        // 4 loop pages
+        // loop pages
         while (1) {
+        	// exit loop on error
         	if (err != SUCCESS) break;
-
+        	// sync the stream and get a page
         	int result = ogg_sync_pageout(&oy,&og);
-           	if (result == 0) break; /* need more data, so go to PREVIOUS loop and read more */
-        	if (result < 0) {
-        		// missing or corrupt data at this page position
+        	// need more data, so go to PREVIOUS loop and read more */
+        	if (result == 0) break;
+           	// missing or corrupt data at this page position
+           	if (result < 0) {
         		LOGW(LOG_TAG, "Corrupt or missing data in bitstream; continuing..");
-        	} else {
-        		// INIT HERE?
-        		if (!inited) {
-					ogg_stream_init(&os, ogg_page_serialno(&og));
-					LOGE(LOG_TAG, "inited stream, serial no: %ld", os.serialno);
-					inited = 1;
-					// reinit header flag here
-					header = VORBIS_HEADERS;
+        		continue;
+           	}
+           	// we finally have a valid page
+			if (!inited) {
+				ogg_stream_init(&os, ogg_page_serialno(&og));
+				LOGE(LOG_TAG, "inited stream, serial no: %ld", os.serialno);
+				inited = 1;
+				// reinit header flag here
+				header = VORBIS_HEADERS;
 
+			}
+			//  add page to bitstream: can safely ignore errors at this point
+			if (ogg_stream_pagein(&os, &og) < 0) LOGE(LOG_TAG, "error 5 pagein");
+
+			// consume all , break for error
+			while (1) {
+				result = ogg_stream_packetout(&os,&op);
+
+				if(result == 0) break; // need more data so exit and go read data in PREVIOUS loop
+				if(result < 0) continue; // missing or corrupt data at this page position , drop here or tolerate error?
+
+
+				// decode available data
+				if (header == 0) {
+					float **pcm;
+					int samples;
+					// test for success!
+					if(vorbis_synthesis(&vb,&op)==0) vorbis_synthesis_blockin(&vd,&vb);
+					while((samples = vorbis_synthesis_pcmout(&vd,&pcm)) > 0) {
+						//LOGE(LOG_TAG, "start while 8, decoding %d samples: %d convsize:%d", op.bytes,  samples, convsize);
+						int j;
+						int frame_size = (samples < convsize?samples : convsize);
+
+						// convert floats to 16 bit signed ints (host order) and interleave
+						for(i = 0; i < vi.channels; i++){
+							ogg_int16_t *ptr = convbuffer + i;
+							float  *mono = pcm[i];
+							for(j=0;j<frame_size;j++){
+								int val = floor(mono[j]*32767.f+.5f);
+								// might as well guard against clipping
+								if(val>32767) { val=32767; }
+								if(val<-32768) { val=-32768; }
+								*ptr=val;
+								ptr += vi.channels;
+							}
+						}
+
+						// Call decodefeed to push data to AudioTrack
+						onWritePCMDataFromVorbisDataFeed(env, &vorbisDataFeed, &writePCMDataMethodId, convbuffer, frame_size*vi.channels, &jShortArrayWriteBuffer);
+						vorbis_synthesis_read(&vd,frame_size); // tell libvorbis how many samples we actually consumed
+					}
+				} // decoding done
+
+				// do we need the header? that's the first thing to take
+				if (header > 0) {
+					if (header == VORBIS_HEADERS) {
+						// prepare vorbis structures
+						vorbis_info_init(&vi);
+						vorbis_comment_init(&vc);
+					}
+					// we need to do this 3 times, for all 3 vorbis headers!
+					// add data to header structure
+					if(vorbis_synthesis_headerin(&vi,&vc,&op) < 0) {
+						// error case; not a vorbis header
+						LOGE(LOG_TAG, "Err: not a vorbis header.");
+						err = NOT_VORBIS_HEADER;
+						break;
+					}
+					// signal next header
+					header--;
+
+					// we got all 3 vorbis headers
+					if (header == 0) {
+						LOGE(LOG_TAG, "Vorbis header data: ver:%d ch:%d samp:%ld [%s]" ,  vi.version, vi.channels, vi.rate, vc.vendor);
+						int i=0;
+						for (i=0; i<vc.comments; i++)
+							LOGD(LOG_TAG,"Header comment:%d len:%d [%s]", i, vc.comment_lengths[i], vc.user_comments[i]);
+						// init vorbis decoder
+						if(vorbis_synthesis_init(&vd,&vi) != 0) {
+							// corrupt header
+							LOGE(LOG_TAG, "Err: corrupt header.");
+							err = CORRUPT_HEADER;
+							break;
+						}
+						// central decode state
+						vorbis_block_init(&vd,&vb);
+
+						// header ready , call player to pass stream details and init AudioTrack
+						onStart(env, &vorbisDataFeed, &startMethodId, vi.rate, vi.channels, vc.vendor);
+					}
+				} // header decoding
+
+				// while packets
+
+				// check stream end
+				if (ogg_page_eos(&og)) {
+					LOGE(LOG_TAG, "Stream finished.");
+					// clean up this logical bitstream;
+					ogg_stream_clear(&os);
+					vorbis_comment_clear(&vc);
+					vorbis_info_clear(&vi);  // must be called last
+
+					// clear decoding structures
+					vorbis_block_clear(&vb);
+					vorbis_dsp_clear(&vd);
+
+					// attempt to go for re-initialization until EOF in data source
+					err = SUCCESS;
+
+					inited = 0;
+					break;
 				}
-        		//  add page to bitstream: can safely ignore errors at this point
-        		if (ogg_stream_pagein(&os, &og) < 0) LOGE(LOG_TAG, "error 5 pagein");
-
-        		// consume all , break for error
-        		while (1) {
-        			result = ogg_stream_packetout(&os,&op);
-
-        			if(result == 0) break; // need more data so exit and go read data in PREVIOUS loop
-        			if(result < 0) {
-        				// missing or corrupt data at this page position , drop here or tolerate error?
-        			} else {
-        				// data available, use it
-						if (header == 0) {
-        					float **pcm;
-							int samples;
-							// test for success!
-							if(vorbis_synthesis(&vb,&op)==0) vorbis_synthesis_blockin(&vd,&vb);
-							while((samples = vorbis_synthesis_pcmout(&vd,&pcm)) > 0) {
-								//LOGE(LOG_TAG, "start while 8, decoding %d samples: %d convsize:%d", op.bytes,  samples, convsize);
-								int j;
-								int bout = (samples < convsize?samples : convsize);
-
-								// convert floats to 16 bit signed ints (host order) and interleave
-								for(i = 0; i < vi.channels; i++){
-									ogg_int16_t *ptr = convbuffer + i;
-									float  *mono = pcm[i];
-									for(j=0;j<bout;j++){
-										int val = floor(mono[j]*32767.f+.5f);
-										// might as well guard against clipping
-										if(val>32767) { val=32767; }
-										if(val<-32768) { val=-32768; }
-										*ptr=val;
-										ptr += vi.channels;
-									}
-								}
-
-								// Call decodefeed to push data to AudioTrack
-								onWritePCMDataFromVorbisDataFeed(env, &vorbisDataFeed, &writePCMDataMethodId, convbuffer, bout*vi.channels, &jShortArrayWriteBuffer);
-								vorbis_synthesis_read(&vd,bout); // tell libvorbis how many samples we actually consumed
-							}
-        				}
-        				// do we need the header? that's the first thing to take
-        				if (header > 0) {
-        					if (header == VORBIS_HEADERS) {
-        						// prepare vorbis structures
-        						vorbis_info_init(&vi);
-        						vorbis_comment_init(&vc);
-        					}
-        					// we need to do this 3 times, for all 3 vorbis headers!
-        					// add data to header structure
-        					if(vorbis_synthesis_headerin(&vi,&vc,&op) < 0) {
-								// error case; not a vorbis header
-        						LOGE(LOG_TAG, "Err: not a vorbis header.");
-								err = NOT_VORBIS_HEADER;
-								break;
-							}
-        					// signal next header
-        					header--;
-
-        					// we got all 3 vorbis headers
-        					if (header == 0) {
-        						LOGE(LOG_TAG, "Vorbis header data: ver:%d ch:%d samp:%ld [%s]" ,  vi.version, vi.channels, vi.rate, vc.vendor);
-        						int i=0;
-        						for (i=0; i<vc.comments; i++)
-        							LOGD(LOG_TAG,"Header comment:%d len:%d [%s]", i, vc.comment_lengths[i], vc.user_comments[i]);
-        						// init vorbis decoder
-        						if(vorbis_synthesis_init(&vd,&vi) != 0) {
-        							// corrupt header
-        							LOGE(LOG_TAG, "Err: corrupt header.");
-        							err = CORRUPT_HEADER;
-        							break;
-        						}
-								// central decode state
-								vorbis_block_init(&vd,&vb);
-
-								onStart(env, &vorbisDataFeed, &startMethodId, vi.rate, vi.channels, vc.vendor);
-        					}
-        				}
-
-        			} // while packets
-
-           			// check stream end
-                    if (ogg_page_eos(&og)) {
-                    	LOGE(LOG_TAG, "Stream finished.");
-                    	// clean up this logical bitstream;
-						//ogg_stream_clear(&os);
-						//ogg_sync_clear(&oy);
-
-						vorbis_comment_clear(&vc);
-						vorbis_info_clear(&vi);  // must be called last
-
-						vorbis_block_clear(&vb);
-						vorbis_dsp_clear(&vd);
-
-                    	// clear header structures here? we exit anyway?
-                    	//eos = 1;
-
-                    	// go for reinitialization
-						err = SUCCESS;
-
-						inited = 0;
-                    	break;
-                    	// this stream is done, clean
-                    	// ogg_page and ogg_packet structs always point to storage in libvorbis.  They're never freed or manipulated directly
-
-						//ogg_sync_clear(&oy);//,&og);
-						//ogg_sync_init(&oy);
-
-                    }
-        		}
-        	} // page if
+			}
+        	// page if
         } // while pages
 
     }

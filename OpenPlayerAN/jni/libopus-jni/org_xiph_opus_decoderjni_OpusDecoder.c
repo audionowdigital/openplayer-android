@@ -1,21 +1,20 @@
-/* Takes a vorbis bitstream from java callbacks from JNI and writes raw stereo PCM to
-the jni callbacks. Decodes simple and chained OggVorbis files from beginning
+/* Takes a opus bitstream from java callbacks from JNI and writes raw stereo PCM to
+the jni callbacks. Decodes simple and chained OggOpus files from beginning
 to end. */
 
 #include "org_xiph_opus_decoderjni_OpusDecoder.h"
 
 /*Define message codes*/
-#define INVALID_OGG_BITSTREAM -21
-#define ERROR_READING_FIRST_PAGE -22
-#define ERROR_READING_INITIAL_HEADER_PACKET -23
-#define NOT_OPUS_HEADER -24
-#define CORRUPT_SECONDARY_HEADER -25
-#define PREMATURE_END_OF_FILE -26
+#define NOT_OPUS_HEADER -1
+#define CORRUPT_HEADER -2
+#define OPUS_DECODE_ERROR -3
 #define SUCCESS 0
+
+#define OPUS_HEADERS 2
 
 #define BUFFER_LENGTH 4096
 
-extern void _VDBG_dump(void);
+
 
 int debug = 0;
 
@@ -31,23 +30,20 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 	return JNI_VERSION_1_6;
 }
 
-//Stops the vorbis data feed
-void onStopDecodeFeed(JNIEnv *env, jobject* encDataFeed, jmethodID* stopMethodId) {
-    (*env)->CallVoidMethod(env, (*encDataFeed), (*stopMethodId));
+//Stops the opus data feed
+void onStopDecodeFeed(JNIEnv *env, jobject* opusDataFeed, jmethodID* stopMethodId) {
+    (*env)->CallVoidMethod(env, (*opusDataFeed), (*stopMethodId));
 }
 
-//Reads raw vorbis data from the jni callback
-int onReadOpusDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID* readOpusDataMethodId, char* buffer, jbyteArray* jByteArrayReadBuffer) {
+//Reads raw opus data from the jni callback
+int onReadOpusDataFromOpusDataFeed(JNIEnv *env, jobject* opusDataFeed, jmethodID* readOpusDataMethodId, char* buffer, jbyteArray* jByteArrayReadBuffer) {
     //Call the read method
-	//LOGI(LOG_TAG, "onReadOpusDataFromOpusDataFeed call.");
-    int readByteCount = (*env)->CallIntMethod(env, (*encDataFeed), (*readOpusDataMethodId), (*jByteArrayReadBuffer), BUFFER_LENGTH);
-    //LOGI(LOG_TAG, "onReadOpusDataFromOpusDataFeed method called %d", readByteCount);
-    //Don't bother copying, just return 0
-    if(readByteCount == 0) {
-        return 0;
-    }
+    int readByteCount = (*env)->CallIntMethod(env, (*opusDataFeed), (*readOpusDataMethodId), (*jByteArrayReadBuffer), BUFFER_LENGTH);
 
-    //Gets the bytes from the java array and copies them to the vorbis buffer
+    //Don't bother copying, just return 0
+    if(readByteCount == 0) return 0;
+
+    //Gets the bytes from the java array and copies them to the opus buffer
     jbyte* readBytes = (*env)->GetByteArrayElements(env, (*jByteArrayReadBuffer), NULL);
     memcpy(buffer, readBytes, readByteCount);
     
@@ -59,35 +55,26 @@ int onReadOpusDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID*
 }
 
 //Writes the pcm data to the Java layer
-void onWritePCMDataFromOpusDataFeed(JNIEnv *env, jobject* encDataFeed, jmethodID* writePCMDataMethodId, ogg_int16_t* buffer, int bytes, jshortArray* jShortArrayWriteBuffer) {
+void onWritePCMDataFromOpusDataFeed(JNIEnv *env, jobject* opusDataFeed, jmethodID* writePCMDataMethodId, ogg_int16_t* buffer, int bytes, jshortArray* jShortArrayWriteBuffer) {
 
     //No data to read, just exit
-    if(bytes == 0) {
-        return;
-    }
-    //LOGI(LOG_TAG, "onWritePCMDataFromOpusDataFeed %d", bytes);
+    if(bytes == 0) return;
 
     //Copy the contents of what we're writing to the java short array
     (*env)->SetShortArrayRegion(env, (*jShortArrayWriteBuffer), 0, bytes, (jshort *)buffer);
     
     //Call the write pcm data method
-    (*env)->CallVoidMethod(env, (*encDataFeed), (*writePCMDataMethodId), (*jShortArrayWriteBuffer), bytes);
+    (*env)->CallVoidMethod(env, (*opusDataFeed), (*writePCMDataMethodId), (*jShortArrayWriteBuffer), bytes);
 }
 
-//jclass 	//decodeStreamInfoClass,
-	//	encDataFeedClass;
-
 //Starts the decode feed with the necessary information about sample rates, channels, etc about the stream
-void onStart(JNIEnv *env, jobject *encDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor) {
+void onStart(JNIEnv *env, jobject *opusDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor) {
     LOGI(LOG_TAG, "Notifying decode feed");
 
     //Creates a java string for the vendor
     jstring vendorString = (*env)->NewStringUTF(env, vendor);
 
     //Get decode stream info class and constructor
-
-    //jclass tmp = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeStreamInfo");
-    //decodeStreamInfoClass = (jclass)(*env)->NewGlobalRef(env, tmp);
     jclass decodeStreamInfoClass = (*env)->FindClass(env, "org/xiph/opus/decoderjni/DecodeStreamInfo");
 
     jmethodID constructor = (*env)->GetMethodID(env, decodeStreamInfoClass, "<init>", "(JJLjava/lang/String;)V");
@@ -96,7 +83,7 @@ void onStart(JNIEnv *env, jobject *encDataFeed, jmethodID* startMethodId, long s
     jobject decodeStreamInfo = (*env)->NewObject(env, decodeStreamInfoClass, constructor, (jlong)sampleRate, (jlong)channels, vendorString);
 
     //Call decode feed onStart
-    (*env)->CallVoidMethod(env, (*encDataFeed), (*startMethodId), decodeStreamInfo);
+    (*env)->CallVoidMethod(env, (*opusDataFeed), (*startMethodId), decodeStreamInfo);
 
     //Cleanup decode feed object
     (*env)->DeleteLocalRef(env, decodeStreamInfo);
@@ -106,29 +93,20 @@ void onStart(JNIEnv *env, jobject *encDataFeed, jmethodID* startMethodId, long s
 }
 
 //Starts reading the header information
-void onStartReadingHeader(JNIEnv *env, jobject *encDataFeed, jmethodID* startReadingHeaderMethodId) {
+void onStartReadingHeader(JNIEnv *env, jobject *opusDataFeed, jmethodID* startReadingHeaderMethodId) {
     LOGI(LOG_TAG, "Notifying decode feed to onStart reading the header");
 
     //Call header onStart reading method
-    (*env)->CallVoidMethod(env, (*encDataFeed), (*startReadingHeaderMethodId));
+    (*env)->CallVoidMethod(env, (*opusDataFeed), (*startReadingHeaderMethodId));
 }
 
-//Starts reading the header information
-void onNewIteration(JNIEnv *env, jobject *encDataFeed, jmethodID* newIterationMethodId) {
-    //LOGI(LOG_TAG, "Notifying decode feed to onNewIteration");
 
-    //Call header onStart reading method
-    (*env)->CallVoidMethod(env, (*encDataFeed), (*newIterationMethodId));
-}
-
-//jobject encDataFeed;
-//jmethodID readOpusDataMethodId, writePCMDataMethodId, startMethodId, startReadingHeaderMethodId, stopMethodId, newIterationMethodId;
-
-//onStartReadingHeader(env, &encDataFeed, &startReadingHeaderMethodId);
+//onStartReadingHeader(env, &opusDataFeed, &startReadingHeaderMethodId);
 JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_initJni(JNIEnv *env, jclass cls, int debug0) {
 	debug = debug0;
 	LOGI(LOG_TAG, "initJni called, initing methods");
 }
+
 
 /*Process an Opus header and setup the opus decoder based on it.
   It takes several pointers for header values which are needed
@@ -188,26 +166,26 @@ static OpusDecoder *process_header(ogg_packet *op, int *rate, int *channels, int
 	return st;
 }
 
-JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls, jobject encDataFeed) {
-	LOGI(LOG_TAG, "startDecoding called, initing buffers ");
+JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls, jobject opusDataFeed) {
+	LOGI(LOG_TAG, "startDecoding called, initing buffers");
 
-    //Create a new java byte array to pass to the vorbis data feed method
-    jbyteArray jByteArrayReadBuffer = (*env)->NewByteArray(env, BUFFER_LENGTH);
+	//Create a new java byte array to pass to the opus data feed method
+	jbyteArray jByteArrayReadBuffer = (*env)->NewByteArray(env, BUFFER_LENGTH);
 
-    //Create our write buffer
-    jshortArray jShortArrayWriteBuffer = (*env)->NewShortArray(env, BUFFER_LENGTH*2);
+	//Create our write buffer
+	jshortArray jShortArrayWriteBuffer = (*env)->NewShortArray(env, BUFFER_LENGTH*2);
 
-    //-- get Java layer method pointer --//
-	jclass encDataFeedClass = (*env)->FindClass(env, "org/xiph/opus/decoderjni/DecodeFeed");
+        //-- get Java layer method pointer --//
+	jclass opusDataFeedClass = (*env)->FindClass(env, "org/xiph/opus/decoderjni/DecodeFeed");
+
 
 	//Find our java method id's we'll be calling
-	jmethodID readOpusDataMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onReadOpusData", "([BI)I");
-	jmethodID writePCMDataMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onWritePCMData", "([SI)V");
-	jmethodID startMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onStart", "(Lorg/xiph/opus/decoderjni/DecodeStreamInfo;)V");
-	jmethodID startReadingHeaderMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onStartReadingHeader", "()V");
-	jmethodID stopMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onStop", "()V");
-	jmethodID newIterationMethodId = (*env)->GetMethodID(env, encDataFeedClass, "onNewIteration", "()V");
-    //--
+	jmethodID readOpusDataMethodId = (*env)->GetMethodID(env, opusDataFeedClass, "onReadOpusData", "([BI)I");
+	jmethodID writePCMDataMethodId = (*env)->GetMethodID(env, opusDataFeedClass, "onWritePCMData", "([SI)V");
+	jmethodID startMethodId = (*env)->GetMethodID(env, opusDataFeedClass, "onStart", "(Lorg/xiph/opus/decoderjni/DecodeStreamInfo;)V");
+	jmethodID startReadingHeaderMethodId = (*env)->GetMethodID(env, opusDataFeedClass, "onStartReadingHeader", "()V");
+	jmethodID stopMethodId = (*env)->GetMethodID(env, opusDataFeedClass, "onStop", "()V");
+	//--
     ogg_int16_t convbuffer[BUFFER_LENGTH]; /* take 8k out of the data segment, not the stack */
     int convsize=BUFFER_LENGTH;
     
@@ -216,22 +194,20 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
     ogg_page         og; /* one Ogg bitstream page. Opus packets are inside */
     ogg_packet       op; /* one raw packet of data for decode */
     
-    // OPUS stuff
-
 
     char *buffer;
     int  bytes;
 
     /********** Decode setup ************/
-    /* 20ms at 48000, TODO 120ms */
-    #define MAX_FRAME_SIZE      960
-    #define OPUS_STACK_SIZE     31684 /**/
+	/* 20ms at 48000, TODO 120ms */
+	#define MAX_FRAME_SIZE      960
+	#define OPUS_STACK_SIZE     31684 /**/
 
-    /* global data */
-    opus_int16 *output;
-    int frame_size =0;
-    OpusDecoder *st = NULL;
-    opus_int64 packet_count;
+	/* global data */
+
+	int frame_size =0;
+	OpusDecoder *st = NULL;
+	opus_int64 packet_count;
 	int stream_init = 0;
 	int eos = 0;
 	int channels = 0;
@@ -249,174 +225,144 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 	char year[5];
 	//
 	char error_string[128];
-	//
-    //
-	//Notify the decode feed we are starting to initialize
-	onStartReadingHeader(env, &encDataFeed, &startReadingHeaderMethodId);
-	ogg_sync_init(&oy); /* Now we can read pages */
-	while(1) {
-    	/* grab some data at the head of the stream. We want the first page
-        (which is guaranteed to be small and only contain the Opus
-        stream initial header) We need the first page to get the stream
-        serialno - similar to Vorbis logic */
+    //Notify the decode feed we are starting to initialize
+    onStartReadingHeader(env, &opusDataFeed, &startReadingHeaderMethodId);
 
-    	// READ DATA
-		/* submit a 4k block to libopus' Ogg layer */
-		//LOGI(LOG_TAG, "Submitting 1 4k block");
-		buffer = ogg_sync_buffer(&oy,BUFFER_LENGTH);
-		bytes = onReadOpusDataFromOpusDataFeed(env, &encDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
-		ogg_sync_wrote(&oy,bytes);
-		if (bytes > 0)
-				LOGE(LOG_TAG, "%d bytes, frames:%d processingp:%d packetcount:%d", bytes, frame_size, proccessing_page);
-		else { //we are done
-			 onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-			 return PREMATURE_END_OF_FILE;
-		}
+    //1
+    ogg_sync_init(&oy); /* Now we can read pages */
 
-		if (!frame_size) /* already have decoded frame */
-		{
-			if (proccessing_page) {
-				if (ogg_stream_packetout(&os, &op) == 1) {
+    int inited = 0, header = OPUS_HEADERS;
 
-					LOGD(LOG_TAG, "ogg stream: bytes=%d bos=%d hasopusstream=%d",
-							op.bytes, op.b_o_s, has_opus_stream);
+    int err = SUCCESS;
+    int i;
 
-					/*OggOpus streams are identified by a magic string in the initial
-					 stream header.*/
-					if (op.b_o_s && op.bytes >= 8 && !memcmp(op.packet, "OpusHead", 8)) {
-						if (!has_opus_stream) {
-							opus_serialno = os.serialno;
-							has_opus_stream = 1;
-							packet_count = 0;
-							eos = 0;
-							LOGE(LOG_TAG, "header found:%ld" , opus_serialno);
-						} else {
-							//LOGE(LOG_TAG, "Warning: ignoring opus stream %ld", os->serialno);
-							LOGE(LOG_TAG, "ignoring opus stream");
+    // start source reading / decoding loop
+    while (1) {
+    	if (err != SUCCESS) {
+    		LOGE(LOG_TAG, "Global loop closing for error: %d", err);
+    		break;
+    	}
+
+        // READ DATA : submit a 4k block to Ogg layer
+        buffer = ogg_sync_buffer(&oy,BUFFER_LENGTH);
+        bytes = onReadOpusDataFromOpusDataFeed(env, &opusDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
+        ogg_sync_wrote(&oy,bytes);
+
+        // Check available data
+        if (bytes == 0) {
+        	LOGW(LOG_TAG, "Data source finished.");
+        	err = SUCCESS;
+        	break;
+        }
+
+        // loop pages
+        while (1) {
+        	// exit loop on error
+        	if (err != SUCCESS) break;
+        	// sync the stream and get a page
+        	int result = ogg_sync_pageout(&oy,&og);
+        	// need more data, so go to PREVIOUS loop and read more */
+        	if (result == 0) break;
+           	// missing or corrupt data at this page position
+           	if (result < 0) {
+        		LOGW(LOG_TAG, "Corrupt or missing data in bitstream; continuing..");
+        		continue;
+           	}
+           	// we finally have a valid page
+			if (!inited) {
+				ogg_stream_init(&os, ogg_page_serialno(&og));
+				LOGE(LOG_TAG, "inited stream, serial no: %ld", os.serialno);
+				inited = 1;
+				// reinit header flag here
+				header = OPUS_HEADERS;
+
+			}
+			//  add page to bitstream: can safely ignore errors at this point
+			if (ogg_stream_pagein(&os, &og) < 0) LOGE(LOG_TAG, "error 5 pagein");
+
+			// consume all , break for error
+			while (1) {
+				result = ogg_stream_packetout(&os,&op);
+
+				if(result == 0) break; // need more data so exit and go read data in PREVIOUS loop
+				if(result < 0) continue; // missing or corrupt data at this page position , drop here or tolerate error?
+
+
+				// decode available data
+				if (header == 0) {
+					int ret = opus_decode(st, (unsigned char*) op.packet, op.bytes, convbuffer, MAX_FRAME_SIZE, 0);
+
+					/*If the decoder returned less than zero, we have an error.*/
+					if (ret < 0) {
+						LOGE(LOG_TAG,"Decoding error: %s", opus_strerror(ret));
+						err = OPUS_DECODE_ERROR;
+						break;
+					}
+					frame_size = (ret < convsize?ret : convsize);
+					onWritePCMDataFromOpusDataFeed(env, &opusDataFeed, &writePCMDataMethodId, convbuffer, channels*frame_size, &jShortArrayWriteBuffer);
+
+
+				} // decoding done
+
+				// do we need the header? that's the first thing to take
+				if (header > 0) {
+					if (header == OPUS_HEADERS) { // first header
+						//if (op.b_o_s && op.bytes >= 8 && !memcmp(op.packet, "OpusHead", 8)) {
+						if (op.bytes < 8 || memcmp(op.packet, "OpusHead", 8) != 0) {
+							err = NOT_OPUS_HEADER;
+							break;
 						}
-					}
-					if (!has_opus_stream || os.serialno != opus_serialno) {
-						LOGE(LOG_TAG, "not has_opus_stream OR  os->serialno not opus_serialno");
-						//onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-						//return NOT_OPUS_HEADER; // TODO: check error
-					}
-
-					/*If first packet in a logical stream, process the Opus header*/
-					if (packet_count == 0) {
-						LOGD(LOG_TAG, "prepare to process header");
-
+						// prepare opus structures
 						st = process_header(&op, &rate, &channels, &preskip, 0);
-						if (!st) {
-							LOGE(LOG_TAG, "invalid header - unable to process what we got");
-
-							onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-							return NOT_OPUS_HEADER;
-						}
-						// prepare to decode, no comments yet
-						onStart(env, &encDataFeed, &startMethodId, rate, channels, "");// vi.rate, vi.channels, vc.vendor);
-
-
-						if (ogg_stream_packetout(&os, &op) != 0 || og.header[og.header_len - 1] == 255) {
-							/*The format specifies that the initial header and tags packets are on their
-							 own pages. To aid implementors in discovering that their files are wrong
-							 we reject them explicitly here. In some player designs files like this would
-							 fail even without an explicit test.*/
-							LOGE(LOG_TAG, "Extra packets on initial header page. Invalid stream.");
-							onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-							return NOT_OPUS_HEADER;
-						}
-
-						//output = user_malloc(sizeof(opus_int16) * MAX_FRAME_SIZE * channels);
-						output = (opus_int16 *)malloc(sizeof(opus_int16) * MAX_FRAME_SIZE * channels);
-						if (!output) {
-							// fatal error, can't allocate memory for decoding
-							LOGE(LOG_TAG, "fatal error no memory for decoding");
-							onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-							return NOT_OPUS_HEADER;
-						}
-					} else if (packet_count == 1) {
-						LOGE(LOG_TAG, "read comments here - additional data from header");
-						// read additional data from header
-						// if (!quiet) print_comments(psDecoderContext, (char*) op.packet, op.bytes);
-					} else {
-						int ret;
-						LOGE(LOG_TAG, "go for decode:");
-						/*End of stream condition*/
-						if (op.e_o_s && os.serialno == opus_serialno)
-							eos = 1; /* don't care for anything except opus eos */
-
-						ret = opus_decode(st, (unsigned char*) op.packet, op.bytes, output, MAX_FRAME_SIZE, 0);
-
-						/*If the decoder returned less than zero, we have an error.*/
-						if (ret < 0) {
-							LOGE(LOG_TAG,"Decoding error: %s", opus_strerror(ret));
-							onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-							return PREMATURE_END_OF_FILE;
-						}
-						LOGE(LOG_TAG, "decoded:%d from %d", ret, op.bytes);
-						frame_size = ret;
+					}
+					if (header == OPUS_HEADERS -1) { // second and last header, read comments
 
 					}
-					packet_count++;
-				} // stream packet out 1
-				else {
-					/* End of packets in page */
-					proccessing_page = 0;
+					// we need to do this 2 times, for all 2 opus headers! add data to header structure
+
+					// signal next header
+					header--;
+
+					// we got all opus headers
+					if (header == 0) {
+						//  header ready , call player to pass stream details and init AudioTrack
+						onStart(env, &opusDataFeed, &startMethodId, rate, channels, "");// vi.rate, vi.channels, vc.vendor);
+					}
+				} // header decoding
+
+				// while packets
+
+				// check stream end
+				if (ogg_page_eos(&og)) {
+					LOGE(LOG_TAG, "Stream finished.");
+					// clean up this logical bitstream;
+					ogg_stream_clear(&os);
+
+					// attempt to go for re-initialization until EOF in data source
+					err = SUCCESS;
+
+					inited = 0;
+					break;
 				}
-			} //if processing page
+			}
+        	// page if
+        } // while pages
 
-			/*We're done*/
-			if (eos) {
-				has_opus_stream = 0;
-			} else {
-				LOGD(LOG_TAG, "NOT EOS");
-
-				if (!proccessing_page && ogg_sync_pageout(&oy, &og) == 1) {
-					if (stream_init == 0) {
-						LOGD(LOG_TAG, "stream_init");
-						ogg_stream_init(&os, ogg_page_serialno(&og));
-						stream_init = 1;
-					}
-					if (ogg_page_serialno(&og) != os.serialno) {
-						/* so all streams are read. */
-						LOGD(LOG_TAG, "reset serial no");
-
-						ogg_stream_reset_serialno(&os, ogg_page_serialno(&og));
-					}
-					/*Add page to the bitstream*/
-					ogg_stream_pagein(&os, &og);
-
-					proccessing_page = 1;
-				} else {
-					LOGD(LOG_TAG, "NEED MORE DATA");
-
-				}
-			} // check we're done
-		}
+    }
 
 
-		/* already have decoded frame, go ahead and play */
-		if (frame_size)
-		{
-			LOGE(LOG_TAG, "play:%d", frame_size);
-			int bout=(frame_size<convsize?frame_size:convsize);
-			onWritePCMDataFromOpusDataFeed(env, &encDataFeed, &writePCMDataMethodId, output, channels*bout, &jShortArrayWriteBuffer);
 
-			frame_size = 0; /* we have consumed that last decoded frame */
-		}
-	} // big while loop
-	// TODO: where do we break??
+    // ogg_page and ogg_packet structs always point to storage in libopus.  They're never freed or manipulated directly
 
-    /* OK, clean up the framer */
+
+    // OK, clean up the framer
     ogg_sync_clear(&oy);
 
-
-
-    onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
+    onStopDecodeFeed(env, &opusDataFeed, &stopMethodId);
 
     //Clean up our buffers
     (*env)->DeleteLocalRef(env, jByteArrayReadBuffer);
     (*env)->DeleteLocalRef(env, jShortArrayWriteBuffer);
 
-    return SUCCESS;
+    return err;
 }

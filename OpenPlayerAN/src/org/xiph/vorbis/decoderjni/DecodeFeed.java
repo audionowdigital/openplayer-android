@@ -9,35 +9,15 @@ public interface DecodeFeed {
      */
     public static final int SUCCESS = 0;
 
-    /**
-     * The bitstream is not ogg
-     */
-    public static final int INVALID_OGG_BITSTREAM = -21;
-
-    /**
-     * Failed to read first page
-     */
-    public static final int ERROR_READING_FIRST_PAGE = -22;
-
-    /**
-     * Failed reading the initial header packet
-     */
-    public static final int ERROR_READING_INITIAL_HEADER_PACKET = -23;
-
-    /**
+     /**
      * The data is not a vorbis header
      */
-    public static final int NOT_VORBIS_HEADER = -24;
+    public static final int NOT_VORBIS_HEADER = -1;
 
     /**
-     * The secondary header is corrupt
+     * The  header is corrupt
      */
-    public static final int CORRUPT_SECONDARY_HEADER = -25;
-
-    /**
-     * Reached a premature end of file
-     */
-    public static final int PREMATURE_END_OF_FILE = -26;
+    public static final int CORRUPT_HEADER = -2;
 
     /**
      * Triggered from the native {@link VorbisDecoder} that is requesting to read the next bit of vorbis data

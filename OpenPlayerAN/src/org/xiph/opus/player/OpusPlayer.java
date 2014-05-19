@@ -7,6 +7,7 @@ import android.util.Log;
 import org.xiph.opus.decodefeed.ImplDecodeFeed;
 import org.xiph.opus.decoderjni.DecodeFeed;
 import org.xiph.opus.decoderjni.OpusDecoder;
+import org.xiph.opus.player.PlayerStates;
 
 import java.io.InputStream;
 
@@ -55,6 +56,9 @@ public class OpusPlayer implements Runnable {
      * @param streamToDecode the stream to read from 
      */
     public void setDataSource(InputStream streamToDecode, long streamLength) {
+    	if (playerState.get() != PlayerStates.STOPPED) {
+            throw new IllegalStateException("Must be stopped to change source!");
+        }
     	Log.d(TAG, "setDataSource:" + streamLength);
     	// set an input stream as data source
     	decodeFeed.setData(streamToDecode, streamLength);
@@ -106,29 +110,17 @@ public class OpusPlayer implements Runnable {
                 Log.d(TAG, "Successfully finished decoding");
                 events.sendEvent(PlayerEvents.PLAYING_FINISHED);
                 break;
-            case DecodeFeed.INVALID_OGG_BITSTREAM:
-            	events.sendEvent(PlayerEvents.PLAYING_FAILED);
-                Log.e(TAG, "Invalid ogg bitstream error received");
-                break;
-            case DecodeFeed.ERROR_READING_FIRST_PAGE:
-                events.sendEvent(PlayerEvents.PLAYING_FAILED);
-                Log.e(TAG, "Error reading first page error received");
-                break;
-            case DecodeFeed.ERROR_READING_INITIAL_HEADER_PACKET:
-                events.sendEvent(PlayerEvents.PLAYING_FAILED);
-                Log.e(TAG, "Error reading initial header packet error received");
-                break;
-            case DecodeFeed.NOT_VORBIS_HEADER:
+            case DecodeFeed.NOT_OPUS_HEADER:
                 events.sendEvent(PlayerEvents.PLAYING_FAILED);
                 Log.e(TAG, "Not a opus header error received");
                 break;
-            case DecodeFeed.CORRUPT_SECONDARY_HEADER:
+            case DecodeFeed.CORRUPT_HEADER:
                 events.sendEvent(PlayerEvents.PLAYING_FAILED);
-                Log.e(TAG, "Corrupt secondary header error received");
+                Log.e(TAG, "Corrupt header error received");
                 break;
-            case DecodeFeed.PREMATURE_END_OF_FILE:
+            case DecodeFeed.OPUS_DECODE_ERROR:
                 events.sendEvent(PlayerEvents.PLAYING_FAILED);
-                Log.e(TAG, "Premature end of file error received");
+                Log.e(TAG, "Decoding error received");
                 break;
         }
     }

@@ -10,34 +10,19 @@ public interface DecodeFeed {
     public static final int SUCCESS = 0;
 
     /**
-     * The bitstream is not ogg
+     * The data is not a opus header
      */
-    public static final int INVALID_OGG_BITSTREAM = -21;
+    public static final int NOT_OPUS_HEADER = -1;
 
     /**
-     * Failed to read first page
+     * The  header is corrupt
      */
-    public static final int ERROR_READING_FIRST_PAGE = -22;
+    public static final int CORRUPT_HEADER = -2;
 
     /**
-     * Failed reading the initial header packet
+     * failed to decode
      */
-    public static final int ERROR_READING_INITIAL_HEADER_PACKET = -23;
-
-    /**
-     * The data is not a vorbis header
-     */
-    public static final int NOT_VORBIS_HEADER = -24;
-
-    /**
-     * The secondary header is corrupt
-     */
-    public static final int CORRUPT_SECONDARY_HEADER = -25;
-
-    /**
-     * Reached a premature end of file
-     */
-    public static final int PREMATURE_END_OF_FILE = -26;
+    public static final int OPUS_DECODE_ERROR = -3;
 
     /**
      * Triggered from the native {@link VorbisDecoder} that is requesting to read the next bit of vorbis data
@@ -73,10 +58,6 @@ public interface DecodeFeed {
      */
     public void onStart(DecodeStreamInfo decodeStreamInfo);
     
-    /**
-     * To be called from JNI when starting a new loop , useful to control pause
-     */
-    public void onNewIteration();
 
     /**
      * Called to seek the stream to a position

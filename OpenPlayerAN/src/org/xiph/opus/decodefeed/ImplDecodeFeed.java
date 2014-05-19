@@ -219,7 +219,8 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     @Override
     public void onStart(DecodeStreamInfo decodeStreamInfo) {
-        if (playerState.get() != PlayerStates.READING_HEADER) {
+    	if (playerState.get() != PlayerStates.READING_HEADER &&
+        		playerState.get() != PlayerStates.PLAYING) {
             throw new IllegalStateException("Must read header first!");
         }
         if (decodeStreamInfo.getChannels() != 1 && decodeStreamInfo.getChannels() != 2) {
@@ -234,6 +235,16 @@ public class ImplDecodeFeed implements DecodeFeed {
         
         streamInfo = decodeStreamInfo;
         
+        // we are already playing but track changed
+        if (playerState.get() == PlayerStates.PLAYING) {
+        	//Stop the audio track, we will restart it
+            if (audioTrack != null) {
+                audioTrack.stop();
+                audioTrack.release();
+                audioTrack = null;
+            }
+        }
+        
         //Create the audio track
         int channelConfiguration = decodeStreamInfo.getChannels() == 1 ? AudioFormat.CHANNEL_OUT_MONO : AudioFormat.CHANNEL_OUT_STEREO;
         int minSize = AudioTrack.getMinBufferSize((int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT);
@@ -241,10 +252,12 @@ public class ImplDecodeFeed implements DecodeFeed {
         		AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
         audioTrack.play();
         
-        events.sendEvent(PlayerEvents.READY_TO_PLAY);
 
-        //We're ready to starting to read actual content
-        playerState.set(PlayerStates.READY_TO_PLAY); 
+        if (playerState.get() == PlayerStates.READING_HEADER) {
+	        events.sendEvent(PlayerEvents.READY_TO_PLAY);
+	        //We're ready to starting to read actual content
+	        playerState.set(PlayerStates.READY_TO_PLAY);
+        }
     }
 
     /**
@@ -258,14 +271,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         }
     }
 
-    /**
-     * To be called from JNI when starting a new loop , useful to control pause
-     */
-	@Override
-	public void onNewIteration() {
-		Log.d(TAG, "onNewIteration");
-	}
-	
+    
 	/**
 	 * returns the number of bytes used by a buffer of given mili seconds, sample rate and channels
 	 * we multiply by 2 to compensate for the 'short' size

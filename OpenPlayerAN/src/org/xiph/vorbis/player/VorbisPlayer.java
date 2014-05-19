@@ -54,6 +54,9 @@ public class VorbisPlayer implements Runnable {
      * @param streamToDecode the stream to read from 
      */
     public void setDataSource(InputStream streamToDecode, long streamSize, long streamLength) {
+    	if (playerState.get() != PlayerStates.STOPPED) {
+            throw new IllegalStateException("Must be stopped to change source!");
+        }
     	// set an input stream as data source
     	decodeFeed.setData(streamToDecode, streamSize, streamLength);
     	// start the thread, will go directly to "run" method
@@ -102,29 +105,13 @@ public class VorbisPlayer implements Runnable {
                 Log.d(TAG, "Successfully finished decoding");
                 events.sendEvent(PlayerEvents.PLAYING_FINISHED);
                 break;
-            case DecodeFeed.INVALID_OGG_BITSTREAM:
-            	events.sendEvent(PlayerEvents.PLAYING_FAILED);
-                Log.e(TAG, "Invalid ogg bitstream error received");
-                break;
-            case DecodeFeed.ERROR_READING_FIRST_PAGE:
+            case DecodeFeed.CORRUPT_HEADER:
                 events.sendEvent(PlayerEvents.PLAYING_FAILED);
-                Log.e(TAG, "Error reading first page error received");
-                break;
-            case DecodeFeed.ERROR_READING_INITIAL_HEADER_PACKET:
-                events.sendEvent(PlayerEvents.PLAYING_FAILED);
-                Log.e(TAG, "Error reading initial header packet error received");
+                Log.e(TAG, "The vorbis header is corrupt, can't continue");
                 break;
             case DecodeFeed.NOT_VORBIS_HEADER:
                 events.sendEvent(PlayerEvents.PLAYING_FAILED);
                 Log.e(TAG, "Not a vorbis header error received");
-                break;
-            case DecodeFeed.CORRUPT_SECONDARY_HEADER:
-                events.sendEvent(PlayerEvents.PLAYING_FAILED);
-                Log.e(TAG, "Corrupt secondary header error received");
-                break;
-            case DecodeFeed.PREMATURE_END_OF_FILE:
-                events.sendEvent(PlayerEvents.PLAYING_FAILED);
-                Log.e(TAG, "Premature end of file error received");
                 break;
         }
     }

@@ -272,10 +272,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, (int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
         audioTrack.play();
 
-        // we are already playing but track changed
-        if (playerState.get() == PlayerStates.PLAYING) {
-        	
-        }
+        
         if (playerState.get() == PlayerStates.READING_HEADER) {
         	events.sendEvent(PlayerEvents.READY_TO_PLAY);
         	//We're ready to starting to read actual content

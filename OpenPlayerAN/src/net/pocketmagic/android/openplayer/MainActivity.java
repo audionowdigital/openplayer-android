@@ -54,7 +54,7 @@ public class MainActivity extends Activity {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
 				// TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
-			    File decodedFile = getLocalFile("comb.ogg");
+			    File decodedFile = getLocalFile("countdown.ogg");
                 InputStream decodedStream = getLocalStream(decodedFile);
                 vorbisPlayer.setDataSource(
 						//getLocalFile("sita-1.1-final.opus")
