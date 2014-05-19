@@ -29,6 +29,7 @@
 							<tool id="org.eclipse.cdt.build.core.settings.holder.1954519258" name="GNU C" superClass="org.eclipse.cdt.build.core.settings.holder">
 								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.1327607979" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
 									<listOptionValue builtIn="false" value="/Users/radhoo/Apps/android-ndk-r9d/platforms/android-19/arch-arm/usr/include"/>
+									<listOptionValue builtIn="false" value="/Users/radhoo/Apps/android-ndk-r9d/toolchains/arm-linux-androideabi-4.6/prebuilt/darwin-x86_64/lib/gcc/arm-linux-androideabi/4.6/include"/>
 								</option>
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.138753799" languageId="org.eclipse.cdt.core.gcc" languageName="GNU C" sourceContentType="org.eclipse.cdt.core.cSource,org.eclipse.cdt.core.cHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>

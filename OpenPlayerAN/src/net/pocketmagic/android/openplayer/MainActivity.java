@@ -45,16 +45,16 @@ public class MainActivity extends Activity {
         setContentView(panelV);
         
         logArea = new TextView(this);
-        logArea.setText("Welcome to OPENPlayer v 1.0.101  Press Init->Play");
+        logArea.setText("Welcome to OPENPlayer v 1.0.106  Press Init->Play");
         panelV.addView(logArea);
         
         Button b = new Button(this);
-        b.setText("init with file (/sdcard/test.ogg)");
+        b.setText("init with file (/sdcard/countdown.ogg)");
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
 				// TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
-			    File decodedFile = getLocalFile("test.ogg");
+			    File decodedFile = getLocalFile("comb.ogg");
                 InputStream decodedStream = getLocalStream(decodedFile);
                 vorbisPlayer.setDataSource(
 						//getLocalFile("sita-1.1-final.opus")
@@ -68,7 +68,12 @@ public class MainActivity extends Activity {
         
         final EditText et = new EditText(this);
         et.setTextSize(10);
-        et.setText("http://test01.va.audionow.com:8000/eugen_vorbis");//http://markosoft.ro/test.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
+        et.setText(
+        		//"http://icecast1.pulsradio.com:80/mxHD.ogg"
+        		//"http://stream-tx4.radioparadise.com:80/ogg-96"
+        		"http://ai-radio.org:8000/radio.ogg"
+        		);
+        //http://test01.va.audionow.com:8000/eugen_vorbis");//http://markosoft.ro/test.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
         panelV.addView(et);
         
         b = new Button(this);
@@ -78,7 +83,6 @@ public class MainActivity extends Activity {
 				logArea.setText("");
 				// String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
 		    	// String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
-		        // TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
 				InputStream urlStrem = getStreamURL(et.getEditableText().toString());
                 vorbisPlayer.setDataSource(urlStrem, urlContentLength, DEBUG_PODCAST_LENGTH);
 		    }
@@ -158,7 +162,7 @@ public class MainActivity extends Activity {
             @Override public void onClick(View arg0) {
                 logArea.setText("");
                 Log.d(TAG, "init with file");
-                File decodedFile = getLocalFile("test4.opus");
+                File decodedFile = getLocalFile("countdown.opus");
                 InputStream decodedStream = getLocalStream(decodedFile);
                 opusPlayer.setDataSource(decodedStream, decodedFile.length());
             }

@@ -138,8 +138,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @return the amount actually written
      */
     @Override public int onReadVorbisData(byte[] buffer, int amountToWrite) {
-    	Log.d(TAG, "readVorbisData call: " + amountToWrite);
-        //If the player is not playing or reading the header, return 0 to end the native decode method
+    	//If the player is not playing or reading the header, return 0 to end the native decode method
         if (playerState.get() == PlayerStates.STOPPED) {
             return 0;
         }
@@ -199,10 +198,6 @@ public class ImplDecodeFeed implements DecodeFeed {
             writtenMiliSeconds += convertBytesToMs(amountToRead);
             // send a notification of progress
             events.sendEvent(PlayerEvents.PLAY_UPDATE, (int) (writtenMiliSeconds / 1000));
-
-            // at this point we know all stream parameters, including the sampleRate, use it to compute current time.
-            Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() +
-            		" time:" + writtenMiliSeconds + " bytes:" + writtenPCMData);
         }
     }
 
@@ -241,7 +236,11 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     @Override
     public void onStart(DecodeStreamInfo decodeStreamInfo) {
-        if (playerState.get() != PlayerStates.READING_HEADER) {
+
+        Log.d(TAG, "onStart call state:" + playerState.get());
+        
+        if (playerState.get() != PlayerStates.READING_HEADER &&
+        		playerState.get() != PlayerStates.PLAYING) {
             throw new IllegalStateException("Must read header first!");
         }
         if (decodeStreamInfo.getChannels() != 1 && decodeStreamInfo.getChannels() != 2) {
@@ -251,21 +250,37 @@ public class ImplDecodeFeed implements DecodeFeed {
             throw new IllegalArgumentException("Invalid sample rate, must be above 0");
         }
         // TODO: finish initing
+        Log.d(TAG, "onStart call ok.");
 
         writtenPCMData = 0; writtenMiliSeconds = 0;
 
         streamInfo = decodeStreamInfo;
 
+        // we are already playing but track changed
+        if (playerState.get() == PlayerStates.PLAYING) {
+        	//Stop the audio track, we will restart it
+            if (audioTrack != null) {
+                audioTrack.stop();
+                audioTrack.release();
+                audioTrack = null;
+            }
+        }
+        	
         //Create the audio track
         int channelConfiguration = decodeStreamInfo.getChannels() == 1 ? AudioFormat.CHANNEL_OUT_MONO : AudioFormat.CHANNEL_OUT_STEREO;
         int minSize = AudioTrack.getMinBufferSize((int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT);
         audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, (int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
         audioTrack.play();
 
-        events.sendEvent(PlayerEvents.READY_TO_PLAY);
-
-        //We're ready to starting to read actual content
-        playerState.set(PlayerStates.READY_TO_PLAY);
+        // we are already playing but track changed
+        if (playerState.get() == PlayerStates.PLAYING) {
+        	
+        }
+        if (playerState.get() == PlayerStates.READING_HEADER) {
+        	events.sendEvent(PlayerEvents.READY_TO_PLAY);
+        	//We're ready to starting to read actual content
+        	playerState.set(PlayerStates.READY_TO_PLAY);
+        }
     }
 
     /**
@@ -277,15 +292,9 @@ public class ImplDecodeFeed implements DecodeFeed {
         	events.sendEvent(PlayerEvents.READING_HEADER);
             playerState.set(PlayerStates.READING_HEADER);
         }
+        
     }
 
-    /**
-     * To be called from JNI when starting a new loop , useful to control pause
-     */
-	@Override
-	public void onNewIteration() {
-		Log.d(TAG, "onNewIteration");
-	}
 
 	/**
 	 * returns the number of bytes used by a buffer of given mili seconds, sample rate and channels

@@ -137,22 +137,16 @@ static OpusDecoder *process_header(ogg_packet *op, int *rate, int *channels, int
 	int err;
 	OpusDecoder *st;
 	OpusHeader header;
-	/*
-	#ifdef NONTHREADSAFE_PSEUDOSTACK
-	global_stack = user_malloc(OPUS_STACK_SIZE);
-	#endif
-	*/
 
 	if (opus_header_parse(op->packet, op->bytes, &header) == 0) {
 		LOGE(LOG_TAG, "Cannot parse header");
 		return NULL;
 	} else
-		LOGD(LOG_TAG, "header details: ch:%d samplerate:%d", header.channels, header.input_sample_rate);
+		LOGD(LOG_TAG, "Header parsed: ch:%d samplerate:%d", header.channels, header.input_sample_rate);
 	*channels = header.channels;
 
+	// validate sample rate: If the rate is unspecified we decode to 48000
 	if (!*rate) *rate = header.input_sample_rate;
-	/* validate sample rate */
-	/* If the rate is unspecified we decode to 48000 */
 	if (*rate == 0) *rate = 48000;
 	if (*rate < 8000 || *rate > 192000) {
 		LOGE(LOG_TAG, "Invalid input_rate %d, defaulting to 48000 instead.",*rate);
@@ -160,7 +154,7 @@ static OpusDecoder *process_header(ogg_packet *op, int *rate, int *channels, int
 	}
 
 	*preskip = header.preskip;
-	st = opus_decoder_create(48000, header.channels, &err);
+	st = opus_decoder_create(*rate, header.channels, &err); // was 48000
 	if (err != OPUS_OK)	{
 		LOGE(LOG_TAG, "Cannot create decoder: %s", opus_strerror(err));
 		return NULL;
@@ -238,15 +232,8 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
     int frame_size =0;
     OpusDecoder *st = NULL;
     opus_int64 packet_count;
-	int total_links =0;
 	int stream_init = 0;
-	int quiet = 0;
-	ogg_int64_t page_granule = 0;
-	ogg_int64_t end_granule = 0;
-	ogg_int64_t link_out = 0;
 	int eos = 0;
-	ogg_int64_t audio_size = 0;
-	double last_coded_seconds;
 	int channels = 0;
 	int rate = 0;
 	int preskip = 0;
@@ -254,15 +241,6 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 	int has_opus_stream = 0;
 	ogg_int32_t opus_serialno = 0;
 	int proccessing_page = 0;
-	int seeking = 0;
-	opus_int64 maxout = 0;
-	void *ogg_buf;
-	int ogg_buf_size = 0;
-	// decode: metadata
-	int channel_count = 0;
-	int bitrate = 0;
-	//
-	int mstime_max, mstime_curr, time_curr;
 	//
 	char title[40];
 	char artist[40];
@@ -309,11 +287,9 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 						if (!has_opus_stream) {
 							opus_serialno = os.serialno;
 							has_opus_stream = 1;
-							link_out = 0;
 							packet_count = 0;
 							eos = 0;
-							total_links++;
-							LOGE(LOG_TAG, "header found:%d" , opus_serialno);
+							LOGE(LOG_TAG, "header found:%ld" , opus_serialno);
 						} else {
 							//LOGE(LOG_TAG, "Warning: ignoring opus stream %ld", os->serialno);
 							LOGE(LOG_TAG, "ignoring opus stream");
@@ -329,7 +305,7 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 					if (packet_count == 0) {
 						LOGD(LOG_TAG, "prepare to process header");
 
-						st = process_header(&op, &rate, &channels, &preskip, quiet);
+						st = process_header(&op, &rate, &channels, &preskip, 0);
 						if (!st) {
 							LOGE(LOG_TAG, "invalid header - unable to process what we got");
 
@@ -339,7 +315,6 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 						// prepare to decode, no comments yet
 						onStart(env, &encDataFeed, &startMethodId, rate, channels, "");// vi.rate, vi.channels, vc.vendor);
 
-						channel_count = channels;
 
 						if (ogg_stream_packetout(&os, &op) != 0 || og.header[og.header_len - 1] == 255) {
 							/*The format specifies that the initial header and tags packets are on their
@@ -351,18 +326,6 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 							return NOT_OPUS_HEADER;
 						}
 
-						/*Remember how many samples at the front we were told to skip
-						 so that we can adjust the timestamp counting.
-						 Allocate the output buffer */
-						gran_offset = preskip;
-						LOGE(LOG_TAG,"check granule: %d %d", gran_offset, end_granule);
-						if (end_granule < gran_offset) {
-							//exit(1);
-							LOGE(LOG_TAG, "granule error - check this");
-							//onStopDecodeFeed(env, &encDataFeed, &stopMethodId);
-							//return NOT_OPUS_HEADER;
-						}
-						mstime_max = (end_granule - gran_offset) / (rate / 1000);
 						//output = user_malloc(sizeof(opus_int16) * MAX_FRAME_SIZE * channels);
 						output = (opus_int16 *)malloc(sizeof(opus_int16) * MAX_FRAME_SIZE * channels);
 						if (!output) {
@@ -393,10 +356,6 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 						LOGE(LOG_TAG, "decoded:%d from %d", ret, op.bytes);
 						frame_size = ret;
 
-						/*This handles making sure that our output duration respects
-						 the final end-trim by not letting the output sample count
-						 get ahead of the granpos indicated value.*/
-						maxout = ((page_granule - gran_offset) * rate / 48000) - link_out;
 					}
 					packet_count++;
 				} // stream packet out 1
@@ -427,9 +386,6 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 					/*Add page to the bitstream*/
 					ogg_stream_pagein(&os, &og);
 
-					page_granule = ogg_page_granulepos(&og);
-					LOGD(LOG_TAG, "starting to process this new page: sn=%d bos=%d", os.serialno, os.b_o_s);
-
 					proccessing_page = 1;
 				} else {
 					LOGD(LOG_TAG, "NEED MORE DATA");
@@ -442,54 +398,11 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 		/* already have decoded frame, go ahead and play */
 		if (frame_size)
 		{
-			//opus_int64 outsamp;
-			//outsamp = audio_write(p); // write decoded data to audio tracker
-			//link_out += outsamp;
-			//audio_size += outsamp;
-			//mstime_curr = audio_size / (rate / 1000);
 			LOGE(LOG_TAG, "play:%d", frame_size);
-
 			int bout=(frame_size<convsize?frame_size:convsize);
-			int i = 0, j = 0;
-
-			int mono[frame_size/2];
-			for ( i=0;i<frame_size/2;i++) {
-				int val=output[2*i];//floor(mono[j]*32767.f+.5f);
-				// might as well guard against clippin
-				if(val>32767) { val=32767; ; }
-				if(val<-32768) { val=-32768; }
-				mono[i] = val;
-			}
-			/*
-			for(i=0;i<channels;i++){
-				ogg_int16_t *ptr=convbuffer+i;
-				//float  *mono=pcm[i];
-				for(j=0;j<bout;j++){
-					int val=output[i];//floor(mono[j]*32767.f+.5f);
-					// might as well guard against clipping
-					if(val>32767) { val=32767; ; }
-					if(val<-32768) { val=-32768; }
-					*ptr=val;
-					ptr+=channels;
-				}
-			}*/
-			//onWritePCMDataFromOpusDataFeed(env, &encDataFeed, &writePCMDataMethodId, &convbuffer[0], bout*channels, &jShortArrayWriteBuffer);
-			LOGE(LOG_TAG, "2");
-			onWritePCMDataFromOpusDataFeed(env, &encDataFeed, &writePCMDataMethodId, output, 2*frame_size, &jShortArrayWriteBuffer);
+			onWritePCMDataFromOpusDataFeed(env, &encDataFeed, &writePCMDataMethodId, output, channels*bout, &jShortArrayWriteBuffer);
 
 			frame_size = 0; /* we have consumed that last decoded frame */
-
-
-			/*if (f_eof(&file)) {
-				trace("\rDecoding complete.        \n");
-				//Did we make it to the end without recovering ANY opus logical streams?
-				if (!p->total_links) {
-					trace("This doesn't look like a Opus file\n");
-				}
-				f_close(&p->file);
-				Player_AsyncCommand(PC_NEXT, 0);
-			}*/
-
 		}
 	} // big while loop
 	// TODO: where do we break??
