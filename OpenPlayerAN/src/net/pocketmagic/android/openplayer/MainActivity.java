@@ -9,7 +9,9 @@ import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.view.ViewGroup.LayoutParams;
 import android.widget.*;
+import android.widget.SeekBar.OnSeekBarChangeListener;
 
 import org.xiph.opus.player.OpusPlayer;
 import org.xiph.vorbis.player.PlayerEvents;
@@ -39,11 +41,13 @@ public class MainActivity extends Activity {
     // Creates and sets our activities layout
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
+        ScrollView scrollView = new ScrollView(this);
+        setContentView(scrollView);
         LinearLayout panelV = new LinearLayout(this);
         panelV.setOrientation(LinearLayout.VERTICAL);
-        setContentView(panelV);
+//        setContentView(panelV);
         
+        scrollView.addView(panelV);
         logArea = new TextView(this);
         logArea.setText("Welcome to OPENPlayer v 1.0.106  Press Init->Play");
         panelV.addView(logArea);
@@ -130,6 +134,31 @@ public class MainActivity extends Activity {
 		});
         panelV.addView(b);
         
+
+        SeekBar seekBar = new SeekBar(this);
+        seekBar.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+        seekBar.setMax(100);
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+                Log.d("SEEK", i+"");
+                vorbisPlayer.setPosition(i);
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
+        
+        panelV.addView(seekBar);
+        
         //------------------- OPUS -------------- //
         final EditText etOpus = new EditText(this);
         etOpus.setTextSize(10);
@@ -182,7 +211,6 @@ public class MainActivity extends Activity {
         });
         h.addView(b);
 
-
         b = new Button(this);
         b.setText("Opus Play");
         b.setOnClickListener(new OnClickListener() {
@@ -223,6 +251,31 @@ public class MainActivity extends Activity {
 		});
         panelV.addView(b);
         
+
+        seekBar = new SeekBar(this);
+        seekBar.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+        seekBar.setMax(100);
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+                Log.d("SEEK", i+"");
+                opusPlayer.setPosition(i);
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
+        
+        panelV.addView(seekBar);
+        
         //------------------------------ //
         playbackHandler = new Handler() {
             @Override
@@ -247,30 +300,6 @@ public class MainActivity extends Activity {
             }
         };
 
-        //Create the seekbar
-        SeekBar seekBar = new SeekBar(this);
-        seekBar.setLayoutParams(new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        seekBar.setMax(100);
-        panelV.addView(seekBar);
-
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                Log.d("SEEK", i+"");
-                vorbisPlayer.setPosition(i);
-
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-
-            }
-        });
         // create the vorbis player
         vorbisPlayer = new VorbisPlayer( playbackHandler);
         

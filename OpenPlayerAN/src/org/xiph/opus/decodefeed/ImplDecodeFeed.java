@@ -4,12 +4,14 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.util.Log;
+
 import org.xiph.opus.decoderjni.DecodeFeed;
 import org.xiph.opus.decoderjni.DecodeStreamInfo;
 import org.xiph.opus.decoderjni.OpusDecoder;
 import org.xiph.opus.player.PlayerEvents;
 import org.xiph.opus.player.PlayerStates;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -80,14 +82,21 @@ public class ImplDecodeFeed implements DecodeFeed {
     	if (streamToDecode == null) {
             throw new IllegalArgumentException("Stream to decode must not be null.");
         }
-    	this.streamLength = streamLength;
-    	this.inputStream = streamToDecode;
-        if (streamLength > 0) {
+        this.streamLength = streamLength;
+
+        // Make sure that for podcasts, the stream is a BufferedInputStream
+        if (!(streamToDecode instanceof BufferedInputStream) && streamLength > 0) {
+            this.inputStream = new BufferedInputStream(streamToDecode);
+        } else {
+            this.inputStream = streamToDecode;
+
+        }
+          if (streamLength > 0) {
             this.inputStream.markSupported();
             this.inputStream.mark((int)streamLength);
         }
     }
-
+    
     /**
      * A pause mechanism that would block current thread when pause flag is set (READY_TO_PLAY)
      */
@@ -146,13 +155,18 @@ public class ImplDecodeFeed implements DecodeFeed {
             throw new IllegalStateException("Stream length must be a positive number");
         }
         long seekPosition = percent * streamLength / 100;
-
         if (inputStream!=null) {
             try {
                 audioTrack.flush();
                 inputStream.reset();
-                inputStream.skip(seekPosition);
-                writtenMiliSeconds = convertBytesToMs(seekPosition);
+                long skippedBytes = 0;
+                long skipSize;
+                while (skippedBytes < seekPosition) {
+                    skipSize = seekPosition - skippedBytes;
+                    skippedBytes += inputStream.skip(skipSize);
+                }
+                Log.d("SEEK ","  " + inputStream.available() + " SKIP_POS  " + seekPosition + " SKIPPED:  " + skippedBytes + " SEC:" + streamLength + "  " + getCurrentPosition());
+                writtenMiliSeconds = percent * streamLength / 100 * 1000; // save in millis for now.
             } catch (IOException e) {
                 e.printStackTrace();
             }

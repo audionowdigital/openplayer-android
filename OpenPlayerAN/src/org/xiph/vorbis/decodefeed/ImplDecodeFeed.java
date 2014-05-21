@@ -169,10 +169,15 @@ public class ImplDecodeFeed implements DecodeFeed {
         long seekPosition = percent * streamSize / 100;
         if (inputStream!=null) {
             try {
-                Log.d("SEEK", inputStream.markSupported() + "  " + inputStream.available() + "  " + seekPosition + " SEC:" + streamLength + "  " + getCurrentPosition());
                 audioTrack.flush();
                 inputStream.reset();
-                inputStream.skip(seekPosition);
+                long skippedBytes = 0;
+                long skipSize;
+                while (skippedBytes < seekPosition) {
+                    skipSize = seekPosition - skippedBytes;
+                    skippedBytes += inputStream.skip(skipSize);
+                }
+                Log.d("SEEK ","  " + inputStream.available() + " SKIP_POS  " + seekPosition + " SKIPPED:  " + skippedBytes + " SEC:" + streamLength + "  " + getCurrentPosition());
                 writtenMiliSeconds = percent * streamLength / 100 * 1000; // save in millis for now.
             } catch (IOException e) {
                 e.printStackTrace();
