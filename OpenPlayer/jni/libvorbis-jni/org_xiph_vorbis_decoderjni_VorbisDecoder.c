@@ -103,7 +103,7 @@ void onStart(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, lon
 
 //Starts reading the header information
 void onStartReadingHeader(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startReadingHeaderMethodId) {
-    LOGI(LOG_TAG, "onStartReadingHeader call.");
+    LOGI(LOG_TAG, "onStartReadingHeader call .");
 
     //Call header onStart reading method
     (*env)->CallVoidMethod(env, (*vorbisDataFeed), (*startReadingHeaderMethodId));

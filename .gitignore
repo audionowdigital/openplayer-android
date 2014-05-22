@@ -1,6 +1,7 @@
 # Eclipse
 .classpath
 .project
+.cproject
 .settings/
 bin/
 tmp/
