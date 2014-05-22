@@ -59,9 +59,8 @@ int onReadVorbisDataFromVorbisDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jme
 void onWritePCMDataFromVorbisDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jmethodID* writePCMDataMethodId, ogg_int16_t* buffer, int bytes, jshortArray* jShortArrayWriteBuffer) {
     
     //No data to read, just exit
-    if(bytes == 0) {
-        return;
-    }
+    if(bytes == 0) return;
+
     //LOGI(LOG_TAG, "onWritePCMDataFromVorbisDataFeed %d", bytes);
 
     //Copy the contents of what we're writing to the java short array
@@ -76,7 +75,7 @@ void onWritePCMDataFromVorbisDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jmet
 
 //Starts the decode feed with the necessary information about sample rates, channels, etc about the stream
 void onStart(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor) {
-    LOGI(LOG_TAG, "Notifying decode feed");
+    LOGI(LOG_TAG, "onStart call.");
 
     //Creates a java string for the vendor
     jstring vendorString = (*env)->NewStringUTF(env, vendor);
@@ -104,7 +103,7 @@ void onStart(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, lon
 
 //Starts reading the header information
 void onStartReadingHeader(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startReadingHeaderMethodId) {
-    LOGI(LOG_TAG, "Notifying decode feed to onStart reading the header");
+    LOGI(LOG_TAG, "onStartReadingHeader call.");
 
     //Call header onStart reading method
     (*env)->CallVoidMethod(env, (*vorbisDataFeed), (*startReadingHeaderMethodId));
