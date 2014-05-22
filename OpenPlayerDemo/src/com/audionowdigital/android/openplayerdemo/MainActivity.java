@@ -166,7 +166,8 @@ public class MainActivity extends Activity {
         //http:\/\/test01.va.audionow.com:8000\/eugen_opus_lo",
         //http:\/\/test01.va.audionow.com:8000\/eugen_opus_hi","type":"opus"
         //etOpus.setText("http://test01.va.audionow.com:8000/eugen_opus");
-        etOpus.setText("http://ai-radio.org:8000/radio.opus");
+        //etOpus.setText("http://ai-radio.org:8000/radio.opus");
+        etOpus.setText("http://ice01.va.audionow.com:8000/sagalswahiliopus.ogg");
         
         panelV.addView(etOpus);
         
