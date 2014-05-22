@@ -13,6 +13,8 @@ to end. */
 
 #define BUFFER_LENGTH 4096
 
+#define COMMENT_MAX_LEN 40
+
 //extern void _VDBG_dump(void);
 
 int debug = 0;
@@ -23,6 +25,11 @@ int debug = 0;
 #define LOGE(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,__VA_ARGS__)
 #define LOGW(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_WARN, LOG_TAG,__VA_ARGS__)
 #define LOGI(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_INFO, LOG_TAG,__VA_ARGS__)
+
+
+#define max(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a > _b ? _a : _b; })
+#define min(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a < _b ? _a : _b; })
+
 
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
   LOGD(LOG_TAG, "onLoad called.");
@@ -74,22 +81,27 @@ void onWritePCMDataFromVorbisDataFeed(JNIEnv *env, jobject* vorbisDataFeed, jmet
 	//	vorbisDataFeedClass;
 
 //Starts the decode feed with the necessary information about sample rates, channels, etc about the stream
-void onStart(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor) {
-    LOGI(LOG_TAG, "onStart call.");
+void onStart(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor,
+		char *title, char *artist, char *album, char *date, char *track) {
+    LOGI(LOG_TAG, "Notifying decode feed");
 
     //Creates a java string for the vendor
     jstring vendorString = (*env)->NewStringUTF(env, vendor);
+    jstring titleString = (*env)->NewStringUTF(env, title);
+    jstring artistString = (*env)->NewStringUTF(env, artist);
+    jstring albumString = (*env)->NewStringUTF(env, album);
+    jstring dateString = (*env)->NewStringUTF(env, date);
+    jstring trackString = (*env)->NewStringUTF(env, track);
 
     //Get decode stream info class and constructor
-
-    //jclass tmp = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeStreamInfo");
-    //decodeStreamInfoClass = (jclass)(*env)->NewGlobalRef(env, tmp);
     jclass decodeStreamInfoClass = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeStreamInfo");
 
-    jmethodID constructor = (*env)->GetMethodID(env, decodeStreamInfoClass, "<init>", "(JJLjava/lang/String;)V");
+    jmethodID constructor = (*env)->GetMethodID(env, decodeStreamInfoClass, "<init>",
+    		"(JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
 
     //Create the decode stream info object
-    jobject decodeStreamInfo = (*env)->NewObject(env, decodeStreamInfoClass, constructor, (jlong)sampleRate, (jlong)channels, vendorString);
+    jobject decodeStreamInfo = (*env)->NewObject(env, decodeStreamInfoClass, constructor, (jlong)sampleRate, (jlong)channels, vendorString,
+    		titleString, artistString,albumString,dateString,trackString);
 
     //Call decode feed onStart
     (*env)->CallVoidMethod(env, (*vorbisDataFeed), (*startMethodId), decodeStreamInfo);
@@ -99,6 +111,11 @@ void onStart(JNIEnv *env, jobject *vorbisDataFeed, jmethodID* startMethodId, lon
 
     //Cleanup java vendor string
     (*env)->DeleteLocalRef(env, vendorString);
+    (*env)->DeleteLocalRef(env, titleString);
+    (*env)->DeleteLocalRef(env, artistString);
+    (*env)->DeleteLocalRef(env, albumString);
+    (*env)->DeleteLocalRef(env, dateString);
+    (*env)->DeleteLocalRef(env, trackString);
 }
 
 //Starts reading the header information
@@ -155,6 +172,14 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
     char *buffer;
     int  bytes;
     
+
+	char vendor[COMMENT_MAX_LEN] = {0};
+	char title[COMMENT_MAX_LEN] = {0};
+	char artist[COMMENT_MAX_LEN] = {0};
+	char album[COMMENT_MAX_LEN] = {0};
+	char date[COMMENT_MAX_LEN] = {0};
+	char track[COMMENT_MAX_LEN] = {0};
+
     /********** Decode setup ************/
 
     //Notify the decode feed we are starting to initialize
@@ -273,8 +298,19 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
 					if (header == 0) {
 						LOGE(LOG_TAG, "Vorbis header data: ver:%d ch:%d samp:%ld [%s]" ,  vi.version, vi.channels, vi.rate, vc.vendor);
 						int i=0;
-						for (i=0; i<vc.comments; i++)
+						for (i=0; i<vc.comments; i++) {
 							LOGD(LOG_TAG,"Header comment:%d len:%d [%s]", i, vc.comment_lengths[i], vc.user_comments[i]);
+							char *c = vc.user_comments[i];
+							int len = vc.comment_lengths[i];
+							 // keys we are looking for in the comments, careful if size if bigger than 10
+							char keys[5][10] = { "title=", "artist=", "album=", "date=", "track=" };
+							char *values[5] = { title, artist, album, date, track }; // put the values in these pointers
+							int j = 0;
+							for (j = 0; j < 5; j++) { // iterate all keys
+								int keylen = strlen(keys[j]);
+								if (!strncasecmp(c, keys[j], keylen )) strncpy(values[j], c + keylen, min(len - keylen , COMMENT_MAX_LEN));
+							}
+						}
 						// init vorbis decoder
 						if(vorbis_synthesis_init(&vd,&vi) != 0) {
 							// corrupt header
@@ -286,7 +322,8 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
 						vorbis_block_init(&vd,&vb);
 
 						// header ready , call player to pass stream details and init AudioTrack
-						onStart(env, &vorbisDataFeed, &startMethodId, vi.rate, vi.channels, vc.vendor);
+						onStart(env, &vorbisDataFeed, &startMethodId, vi.rate, vi.channels, vc.vendor,
+								title, artist, album, date, track);
 					}
 				} // header decoding
 

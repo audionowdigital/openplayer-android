@@ -248,7 +248,9 @@ public class ImplDecodeFeed implements DecodeFeed {
             throw new IllegalArgumentException("Invalid sample rate, must be above 0");
         }
         // TODO: finish initing
-        
+        Log.d(TAG, "onStart call ok (Vendor:" + decodeStreamInfo.getVendor() + ") Track parameters: Title:"+ decodeStreamInfo.getTitle() + " Artist:"+decodeStreamInfo.getArtist() + 
+        		" Album:" + decodeStreamInfo.getAlbum() + " Date:" + decodeStreamInfo.getDate() + " Track:" + decodeStreamInfo.getTrack());
+
         writtenPCMData = 0; writtenMiliSeconds = 0;
         
         streamInfo = decodeStreamInfo;
@@ -270,12 +272,20 @@ public class ImplDecodeFeed implements DecodeFeed {
         		AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
         audioTrack.play();
         
-
+       
         if (playerState.get() == PlayerStates.READING_HEADER) {
 	        events.sendEvent(PlayerEvents.READY_TO_PLAY);
 	        //We're ready to starting to read actual content
 	        playerState.set(PlayerStates.READY_TO_PLAY);
         }
+        
+        events.sendEvent(PlayerEvents.TRACK_INFO, decodeStreamInfo.getVendor(),
+    			decodeStreamInfo.getTitle(),
+    			decodeStreamInfo.getArtist(),
+    			decodeStreamInfo.getAlbum(),
+    			decodeStreamInfo.getDate(),
+    			decodeStreamInfo.getTrack());
+        
     }
 
     /**

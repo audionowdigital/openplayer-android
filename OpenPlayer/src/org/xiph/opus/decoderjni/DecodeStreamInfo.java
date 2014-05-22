@@ -10,10 +10,18 @@ public class DecodeStreamInfo {
 
     private String vendor;
 
-    public DecodeStreamInfo(long sampleRate, long channels, String vendor) {
+    private String title, artist, album, date, track;
+
+    public DecodeStreamInfo(long sampleRate, long channels, String vendor, String title, String artist, String album, String date, String track) {
         this.sampleRate = sampleRate;
         this.channels = channels;
         this.vendor = vendor;
+        // additional info
+        this.title = title;
+        this.artist = artist;
+        this.album = album;
+        this.date = date;
+        this.track = track;
     }
 
     public long getSampleRate() {
@@ -38,5 +46,22 @@ public class DecodeStreamInfo {
 
     public void setVendor(String vendor) {
         this.vendor = vendor;
+    }
+    
+    // Getters for the additional data
+    public String getTitle() {
+        return title;
+    }
+    public String getArtist() {
+        return artist;
+    }
+    public String getAlbum() {
+        return album;
+    }
+    public String getDate() {
+        return date;
+    }
+    public String getTrack() {
+        return track;
     }
 }

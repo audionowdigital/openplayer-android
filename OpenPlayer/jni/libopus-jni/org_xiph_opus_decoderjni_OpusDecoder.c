@@ -14,7 +14,7 @@ to end. */
 
 #define BUFFER_LENGTH 4096
 
-
+#define COMMENT_MAX_LEN 40
 
 int debug = 0;
 
@@ -68,19 +68,27 @@ void onWritePCMDataFromOpusDataFeed(JNIEnv *env, jobject* opusDataFeed, jmethodI
 }
 
 //Starts the decode feed with the necessary information about sample rates, channels, etc about the stream
-void onStart(JNIEnv *env, jobject *opusDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor) {
+void onStart(JNIEnv *env, jobject *opusDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor,
+		char *title, char *artist, char *album, char *date, char *track) {
     LOGI(LOG_TAG, "Notifying decode feed");
 
     //Creates a java string for the vendor
     jstring vendorString = (*env)->NewStringUTF(env, vendor);
+    jstring titleString = (*env)->NewStringUTF(env, title);
+    jstring artistString = (*env)->NewStringUTF(env, artist);
+    jstring albumString = (*env)->NewStringUTF(env, album);
+    jstring dateString = (*env)->NewStringUTF(env, date);
+    jstring trackString = (*env)->NewStringUTF(env, track);
 
     //Get decode stream info class and constructor
     jclass decodeStreamInfoClass = (*env)->FindClass(env, "org/xiph/opus/decoderjni/DecodeStreamInfo");
 
-    jmethodID constructor = (*env)->GetMethodID(env, decodeStreamInfoClass, "<init>", "(JJLjava/lang/String;)V");
+    jmethodID constructor = (*env)->GetMethodID(env, decodeStreamInfoClass, "<init>",
+    		"(JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
 
     //Create the decode stream info object
-    jobject decodeStreamInfo = (*env)->NewObject(env, decodeStreamInfoClass, constructor, (jlong)sampleRate, (jlong)channels, vendorString);
+    jobject decodeStreamInfo = (*env)->NewObject(env, decodeStreamInfoClass, constructor, (jlong)sampleRate, (jlong)channels, vendorString,
+    		titleString, artistString,albumString,dateString,trackString);
 
     //Call decode feed onStart
     (*env)->CallVoidMethod(env, (*opusDataFeed), (*startMethodId), decodeStreamInfo);
@@ -90,6 +98,11 @@ void onStart(JNIEnv *env, jobject *opusDataFeed, jmethodID* startMethodId, long 
 
     //Cleanup java vendor string
     (*env)->DeleteLocalRef(env, vendorString);
+    (*env)->DeleteLocalRef(env, titleString);
+    (*env)->DeleteLocalRef(env, artistString);
+    (*env)->DeleteLocalRef(env, albumString);
+    (*env)->DeleteLocalRef(env, dateString);
+    (*env)->DeleteLocalRef(env, trackString);
 }
 
 //Starts reading the header information
@@ -166,6 +179,87 @@ static OpusDecoder *process_header(ogg_packet *op, int *rate, int *channels, int
 	return st;
 }
 
+// read an int from multiple bytes
+#define readint(buf, offset) (((buf[offset + 3] << 24) & 0xff000000) | ((buf[offset + 2] << 16) & 0xff0000) | ((buf[offset + 1] << 8) & 0xff00) | (buf[offset] & 0xff))
+
+#define max(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a > _b ? _a : _b; })
+#define min(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a < _b ? _a : _b; })
+
+
+// OpusTags | Len 4B | Vendor String (len) | Len 4B Tags | Len Tag 1 4B | Tag 1 String (Len) | Len Tag 2 4B ..
+int process_comments(char *c, int length, char *vendor, char *title,  char *artist, char *album, char *date, char *track, int maxlen) {
+	int err = SUCCESS;
+	LOGE(LOG_TAG,"process_comments called for %d bytes.", length);
+
+	if (length < (8 + 4 + 4)) {
+		err = NOT_OPUS_HEADER;
+		return err;;
+	}
+	if (strncmp(c, "OpusTags", 8) != 0) {
+		err = NOT_OPUS_HEADER;
+		return err;
+	}
+	c += 8; // skip header
+	int len = readint(c, 0);
+	c += 4;
+	if (len < 0 || len > (length - 16)) {
+		LOGE(LOG_TAG, "invalid/corrupt comments");
+		err = NOT_OPUS_HEADER;
+		return err;
+	}
+	strncpy(vendor, c, min(len, maxlen));
+
+	c += len;
+	int fields = readint(c, 0); // the -16 check above makes sure we can read this.
+	c += 4;
+	length -= 16 + len;
+	if (fields < 0 || fields > (length >> 2)) {
+		LOGE(LOG_TAG, "invalid/corrupt comments");
+		err = NOT_OPUS_HEADER;
+		return err;
+	}
+	LOGD(LOG_TAG, "Go and read %d fields:", fields);
+	int i = 0;
+	for (i = 0; i < fields; i++) {
+	    if (length < 4){
+	    	LOGE(LOG_TAG, "invalid/corrupt comments");
+			err = NOT_OPUS_HEADER;
+			return err;
+	    }
+	    len = readint(c, 0);
+	    c += 4;
+	    length -= 4;
+	    if (len < 0 || len > length)
+	    {
+	    	LOGE(LOG_TAG, "invalid/corrupt comments");
+			err = NOT_OPUS_HEADER;
+			return err;
+	    }
+	    char *tmp = (char *)malloc(len + 1); // we also need the ending 0
+	    strncpy(tmp, c, len);
+	    tmp[len] = 0;
+	    LOGD(LOG_TAG,"Header comment:%d len:%d [%s]", i, len, tmp);
+	    free(tmp);
+
+	    // keys we are looking for in the comments
+		char keys[5][10] = { "title=", "artist=", "album=", "date=", "track=" };
+		char *values[5] = { title, artist, album, date, track }; // put the values in these pointers
+	    int j = 0;
+	    for (j = 0; j < 5; j++) { // iterate all keys
+	    	int keylen = strlen(keys[j]);
+	    	if (!strncasecmp(c, keys[j], keylen )) strncpy(values[j], c + keylen, min(len - keylen , maxlen));
+	    }
+	    /*if (!strncasecmp(c, "title=", 6)) strncpy(title, c + 6, min(len - 6 , maxlen));
+	    if (!strncasecmp(c, "artist=", 7)) strncpy(artist, c + 7, min(len - 7 , maxlen));
+	    if (!strncasecmp(c, "album=", 6)) strncpy(album, c + 6, min(len - 6 , maxlen));
+	    if (!strncasecmp(c, "date=", 5)) strncpy(date, c + 5, min(len - 5 , maxlen));
+	    if (!strncasecmp(c, "track=", 6)) strncpy(track, c + 6, min(len - 6 , maxlen));*/
+
+	    c += len;
+	    length -= len;
+	  }
+}
+
 JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls, jobject opusDataFeed) {
 	LOGI(LOG_TAG, "startDecoding called, initing buffers");
 
@@ -218,14 +312,15 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 	ogg_int32_t opus_serialno = 0;
 	int proccessing_page = 0;
 	//
-	char title[40];
-	char artist[40];
-	char album[40];
-	char notes[128];
-	char year[5];
-	//
-	char error_string[128];
-    //Notify the decode feed we are starting to initialize
+
+	char vendor[COMMENT_MAX_LEN] = {0};
+	char title[COMMENT_MAX_LEN] = {0};
+	char artist[COMMENT_MAX_LEN] = {0};
+	char album[COMMENT_MAX_LEN] = {0};
+	char date[COMMENT_MAX_LEN] = {0};
+	char track[COMMENT_MAX_LEN] = {0};
+
+	//Notify the decode feed we are starting to initialize
     onStartReadingHeader(env, &opusDataFeed, &startReadingHeaderMethodId);
 
     //1
@@ -316,6 +411,8 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 						st = process_header(&op, &rate, &channels, &preskip, 0);
 					}
 					if (header == OPUS_HEADERS -1) { // second and last header, read comments
+						// err = we ignore comment errors
+						process_comments((char *)op.packet, op.bytes, vendor, title, artist, album, date, track, COMMENT_MAX_LEN);
 
 					}
 					// we need to do this 2 times, for all 2 opus headers! add data to header structure
@@ -326,7 +423,8 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 					// we got all opus headers
 					if (header == 0) {
 						//  header ready , call player to pass stream details and init AudioTrack
-						onStart(env, &opusDataFeed, &startMethodId, rate, channels, "");// vi.rate, vi.channels, vc.vendor);
+						onStart(env, &opusDataFeed, &startMethodId, rate, channels, vendor,
+								title, artist, album, date, track);
 					}
 				} // header decoding
 

@@ -1,5 +1,6 @@
 package org.xiph.opus.player;
 
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 
@@ -30,6 +31,10 @@ public class PlayerEvents {
      */
     public static final int PLAY_UPDATE = 1005;
     
+    /**
+     * Progress indicator, sent out periodically when playing
+     */
+    public static final int TRACK_INFO = 1006;
     
     /**
      * Handler for sending status updates
@@ -58,4 +63,22 @@ public class PlayerEvents {
     	msg.what = event;
     	handler.sendMessage(msg);
     } 
+    
+    
+    public void sendEvent(int event, String vendor, String title, String artist, String album, String date, String track) {
+    	Message msg = new Message();
+    	Bundle data = new Bundle();
+    	data.putString("vendor", vendor);
+    	data.putString("title", title);
+    	data.putString("artist", artist);
+    	data.putString("album", album);
+    	data.putString("date", date);
+    	data.putString("track", track);
+    	msg.setData(data);
+    	
+    	msg.what = event;
+    	
+    	handler.sendMessage(msg);
+    }
+    
 }
