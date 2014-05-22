@@ -42,6 +42,8 @@ public class ImplDecodeFeed implements DecodeFeed {
     protected InputStream inputStream;
     
     protected long streamLength;
+    
+    protected long streamSize;
 
     /**
      * The amount of written pcm data to the audio track
@@ -78,22 +80,23 @@ public class ImplDecodeFeed implements DecodeFeed {
      * Pass a stream as data source
      * @param streamToDecode
      */
-    public void setData(InputStream streamToDecode, long streamLength) {
+    public void setData(InputStream streamToDecode, long streamSize, long streamLength) {
     	if (streamToDecode == null) {
             throw new IllegalArgumentException("Stream to decode must not be null.");
         }
         this.streamLength = streamLength;
+        this.streamSize = streamSize;
 
         // Make sure that for podcasts, the stream is a BufferedInputStream
-        if (!(streamToDecode instanceof BufferedInputStream) && streamLength > 0) {
+        if (!(streamToDecode instanceof BufferedInputStream) && streamSize > 0) {
             this.inputStream = new BufferedInputStream(streamToDecode);
         } else {
             this.inputStream = streamToDecode;
 
         }
-          if (streamLength > 0) {
+          if (streamSize > 0) {
             this.inputStream.markSupported();
-            this.inputStream.mark((int)streamLength);
+            this.inputStream.mark((int)streamSize);
         }
     }
     
@@ -151,10 +154,10 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     @Override
     public void setPosition(int percent) {
-        if (streamLength < 0) {
+        if (streamSize < 0) {
             throw new IllegalStateException("Stream length must be a positive number");
         }
-        long seekPosition = percent * streamLength / 100;
+        long seekPosition = percent * streamSize / 100;
         if (inputStream!=null) {
             try {
                 audioTrack.flush();
@@ -172,6 +175,7 @@ public class ImplDecodeFeed implements DecodeFeed {
             }
         }
     }
+
 
     /**
      * Triggered from the native {@link VorbisDecoder} that is requesting to write the next bit of raw PCM data

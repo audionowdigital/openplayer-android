@@ -176,7 +176,7 @@ public class MainActivity extends Activity {
 				// String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
 		    	// String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
 				Log.d(TAG, "init with:"+etOpus.getEditableText().toString());
-				opusPlayer.setDataSource(getStreamURL(etOpus.getEditableText().toString()), -1);
+				opusPlayer.setDataSource(getStreamURL(etOpus.getEditableText().toString()), -1, DEBUG_PODCAST_LENGTH);
 		    }
 		});
         panelV.addView(b);
@@ -193,7 +193,7 @@ public class MainActivity extends Activity {
                 Log.d(TAG, "init with file");
                 File decodedFile = getLocalFile("countdown.opus");
                 InputStream decodedStream = getLocalStream(decodedFile);
-                opusPlayer.setDataSource(decodedStream, decodedFile.length());
+                opusPlayer.setDataSource(decodedStream, decodedFile.length(), DEBUG_PODCAST_LENGTH);
             }
         });
         h.addView(b);
@@ -206,7 +206,7 @@ public class MainActivity extends Activity {
                 Log.d(TAG, "init with file");
                 File decodedFile = getLocalFile("test5.opus");
                 InputStream decodedStream = getLocalStream(decodedFile);
-                opusPlayer.setDataSource(decodedStream, decodedFile.length());
+                opusPlayer.setDataSource(decodedStream, decodedFile.length(), DEBUG_PODCAST_LENGTH);
             }
         });
         h.addView(b);

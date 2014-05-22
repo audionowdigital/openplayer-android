@@ -55,13 +55,13 @@ public class OpusPlayer implements Runnable {
      * Set an input stream as data source and starts reading from it
      * @param streamToDecode the stream to read from 
      */
-    public void setDataSource(InputStream streamToDecode, long streamLength) {
+    public void setDataSource(InputStream streamToDecode, long streamSize, long streamLength) {
     	if (playerState.get() != PlayerStates.STOPPED) {
             throw new IllegalStateException("Must be stopped to change source!");
         }
     	Log.d(TAG, "setDataSource:" + streamLength);
     	// set an input stream as data source
-    	decodeFeed.setData(streamToDecode, streamLength);
+    	decodeFeed.setData(streamToDecode, streamSize, streamLength);
     	// start the thread, will go directly to "run" method
     	new Thread(this).start();
     }
