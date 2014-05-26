@@ -105,6 +105,9 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     public synchronized void waitPlay(){
         while(playerState.get() == PlayerStates.READY_TO_PLAY) {
+            if (streamLength == -1){
+                writtenMiliSeconds = 0;
+            }
             try {
                 wait();
             } catch (InterruptedException e) {
