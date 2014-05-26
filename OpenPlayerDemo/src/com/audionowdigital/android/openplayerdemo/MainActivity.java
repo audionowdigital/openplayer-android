@@ -165,7 +165,10 @@ public class MainActivity extends Activity {
         //etOpus.setText("http://icecast1.pulsradio.com:80/mxHD.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
         //http:\/\/test01.va.audionow.com:8000\/eugen_opus_lo",
         //http:\/\/test01.va.audionow.com:8000\/eugen_opus_hi","type":"opus"
-        etOpus.setText("http://test01.va.audionow.com:8000/eugen_opus");
+        //etOpus.setText("http://test01.va.audionow.com:8000/eugen_opus");
+        //etOpus.setText("http://ai-radio.org:8000/radio.opus");
+        etOpus.setText("http://ice01.va.audionow.com:8000/sagalswahiliopus.ogg");
+        
         panelV.addView(etOpus);
         
         b = new Button(this);
@@ -296,6 +299,19 @@ public class MainActivity extends Activity {
                     case PlayerEvents.PLAY_UPDATE:
                     	logArea.setText("Playing:" + (msg.arg1 ) + "s");
                         break;
+                    case PlayerEvents.TRACK_INFO:
+                    	Bundle data = msg.getData();
+                    	/* track details include
+                    	 * data.getString("vendor")
+                    	 * data.getString("title")
+                    	 * data.getString("artist")
+                    	 * data.getString("album")
+                    	 * data.getString("date")
+                    	 * data.getString("track")
+                    	*/
+                    	logArea.setText("title:" + data.getString("title") + " artist:" + data.getString("artist") + " album:"+ data.getString("album") + 
+                    			" date:" + data.getString("date") + " track:" + data.getString("track"));
+                    	break;
                 }
             }
         };

@@ -13,6 +13,11 @@ bin/
 gen/
 tmp/
 obj/
+OpenPlayer/.classpath
+OpenPlayer/.project
+OpenPlayer/OpenPlayer.iml
+OpenPlayerDemo/.classpath
+OpenPlayerDemo/.project
 
 
 # generated files
