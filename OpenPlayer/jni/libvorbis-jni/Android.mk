@@ -1,9 +1,10 @@
 LOCAL_PATH := $(call my-dir)
+PATH_ABS := $(abspath $(call my-dir)/../../../../libs_common/)
 
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := vorbis-jni
-LOCAL_CFLAGS += -I$(LOCAL_PATH)/../libvorbis/include -I$(LOCAL_PATH)/../libogg/include -fsigned-char
+LOCAL_CFLAGS += -I$(PATH_ABS)/libvorbis/include -I$(PATH_ABS)/libogg/include -fsigned-char
 ifeq ($(TARGET_ARCH),arm)
 	LOCAL_CFLAGS += -march=armv6 -marm -mfloat-abi=softfp -mfpu=vfp
 endif
