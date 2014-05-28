@@ -105,6 +105,9 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     public synchronized void waitPlay(){
         while(playerState.get() == PlayerStates.READY_TO_PLAY) {
+            if (streamLength == -1){
+                writtenMiliSeconds = 0;
+            }
             try {
                 wait();
             } catch (InterruptedException e) {
@@ -208,6 +211,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     @Override
     public synchronized void onStop() {
         if (!playerState.isStopped()) {
+        	writtenPCMData = 0; writtenMiliSeconds = 0;
             //Closes the file input stream
             if (inputStream != null) {
                 try {
@@ -251,8 +255,6 @@ public class ImplDecodeFeed implements DecodeFeed {
         Log.d(TAG, "onStart call ok (Vendor:" + decodeStreamInfo.getVendor() + ") Track parameters: Title:"+ decodeStreamInfo.getTitle() + " Artist:"+decodeStreamInfo.getArtist() + 
         		" Album:" + decodeStreamInfo.getAlbum() + " Date:" + decodeStreamInfo.getDate() + " Track:" + decodeStreamInfo.getTrack());
 
-        writtenPCMData = 0; writtenMiliSeconds = 0;
-        
         streamInfo = decodeStreamInfo;
         
         // we are already playing but track changed

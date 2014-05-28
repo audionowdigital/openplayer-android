@@ -75,7 +75,7 @@ public class MainActivity extends Activity {
         et.setText(
         		//"http://icecast1.pulsradio.com:80/mxHD.ogg"
         		//"http://stream-tx4.radioparadise.com:80/ogg-96"
-        		"http://ai-radio.org:8000/radio.ogg"
+        		"http://icecast1.pulsradio.com:80/mxHD.ogg"
         		);
         //http://test01.va.audionow.com:8000/eugen_vorbis");//http://markosoft.ro/test.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
         panelV.addView(et);
