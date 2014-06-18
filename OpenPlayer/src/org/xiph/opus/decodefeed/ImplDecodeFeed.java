@@ -58,7 +58,12 @@ public class ImplDecodeFeed implements DecodeFeed {
      * Stream info as reported in the header 
      */
     DecodeStreamInfo streamInfo;
-    
+
+    /**
+     * Maximum number of loops allowed when seeking in a large stream
+     */
+    private static final int MAX_SEEK_LOOPS = 10;
+
     /**
      * Creates a decode feed that reads from a file and writes to an {@link AudioTrack}
      *
@@ -167,7 +172,9 @@ public class ImplDecodeFeed implements DecodeFeed {
                 inputStream.reset();
                 long skippedBytes = 0;
                 long skipSize;
-                while (skippedBytes < seekPosition) {
+                int seekLoops = 0;
+                while (skippedBytes < seekPosition && seekLoops < MAX_SEEK_LOOPS) {
+                    seekLoops++;
                     skipSize = seekPosition - skippedBytes;
                     skippedBytes += inputStream.skip(skipSize);
                 }
