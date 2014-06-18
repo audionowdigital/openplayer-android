@@ -176,6 +176,8 @@ static OpusDecoder *process_header(ogg_packet *op, int *rate, int *channels, int
 		}
 	}
 
+	LOGE(LOG_TAG, "Header returning:: %d" , st);
+
 	return st;
 }
 
@@ -258,6 +260,7 @@ int process_comments(char *c, int length, char *vendor, char *title,  char *arti
 	    c += len;
 	    length -= len;
 	  }
+	return err;
 }
 
 JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls, jobject opusDataFeed) {
@@ -410,16 +413,18 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 						// prepare opus structures
 						st = process_header(&op, &rate, &channels, &preskip, 0);
 					}
+					//LOGE(LOG_TAG, "header:%d(1)", header);
 					if (header == OPUS_HEADERS -1) { // second and last header, read comments
 						// err = we ignore comment errors
-						process_comments((char *)op.packet, op.bytes, vendor, title, artist, album, date, track, COMMENT_MAX_LEN);
+						err = process_comments((char *)op.packet, op.bytes, vendor, title, artist, album, date, track, COMMENT_MAX_LEN);
+						if (err != SUCCESS) break;
 
 					}
 					// we need to do this 2 times, for all 2 opus headers! add data to header structure
 
 					// signal next header
 					header--;
-
+					//LOGE(LOG_TAG, "header:%d(2)", header);
 					// we got all opus headers
 					if (header == 0) {
 						//  header ready , call player to pass stream details and init AudioTrack
@@ -452,15 +457,18 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 
     // ogg_page and ogg_packet structs always point to storage in libopus.  They're never freed or manipulated directly
 
+    //LOGW(LOG_TAG, "Preparing to exit (1).");
 
     // OK, clean up the framer
     ogg_sync_clear(&oy);
-
+    //LOGW(LOG_TAG, "Preparing to exit (2).");
     onStopDecodeFeed(env, &opusDataFeed, &stopMethodId);
+    //LOGW(LOG_TAG, "Preparing to exit (3).");
 
     //Clean up our buffers
     (*env)->DeleteLocalRef(env, jByteArrayReadBuffer);
     (*env)->DeleteLocalRef(env, jShortArrayWriteBuffer);
+    LOGW(LOG_TAG, "Preparing to exit done, res:%d.", err);
 
     return err;
 }

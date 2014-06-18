@@ -167,7 +167,8 @@ public class MainActivity extends Activity {
         //http:\/\/test01.va.audionow.com:8000\/eugen_opus_hi","type":"opus"
         //etOpus.setText("http://test01.va.audionow.com:8000/eugen_opus");
         //etOpus.setText("http://ai-radio.org:8000/radio.opus");
-        etOpus.setText("http://ice01.va.audionow.com:8000/sagalswahiliopus.ogg");
+        //etOpus.setText("http://ice01.va.audionow.com:8000/sagalswahiliopus.ogg");
+        etOpus.setText("http://ice01.va.audionow.com:8000/PowerFMJamaicaopus.ogg");
         
         panelV.addView(etOpus);
         
@@ -218,6 +219,7 @@ public class MainActivity extends Activity {
         b.setText("Opus Play");
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
+				Log.e("XX", "opus:"+opusPlayer + " ready:" + opusPlayer.isReadyToPlay());
 				if (opusPlayer != null && opusPlayer.isReadyToPlay()) {
 					logArea.setText("Playing... ");
 					opusPlayer.Play();

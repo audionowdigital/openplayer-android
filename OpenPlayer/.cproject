@@ -1,16 +1,18 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+<?fileVersion 4.0.0?>
+
+<cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
 	<storageModule moduleId="org.eclipse.cdt.core.settings">
 		<cconfiguration id="cdt.managedbuild.config.gnu.macosx.exe.debug.1089395272">
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.config.gnu.macosx.exe.debug.1089395272" moduleId="org.eclipse.cdt.core.settings" name="Debug">
 				<externalSettings/>
 				<extensions>
+					<extension id="org.eclipse.cdt.core.MachO64" point="org.eclipse.cdt.core.BinaryParser"/>
 					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.MachO64" point="org.eclipse.cdt.core.BinaryParser"/>
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
@@ -40,8 +42,9 @@
 								<option id="gnu.c.compiler.macosx.exe.debug.option.debugging.level.1875680444" name="Debug Level" superClass="gnu.c.compiler.macosx.exe.debug.option.debugging.level" value="gnu.c.debugging.level.max" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.include.paths.1631632511" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="/Users/radhoo/Apps/android-ndk-r9d/platforms/android-19/arch-arm/usr/include"/>
-									<listOptionValue builtIn="false" value="/Volumes/MacHD/AudioNow/libs_common"/>
 									<listOptionValue builtIn="false" value="/Volumes/MacHD/android-ndk-r9d/toolchains/arm-linux-androideabi-4.6/prebuilt/darwin-x86_64/include"/>
+									<listOptionValue builtIn="false" value="/Users/radhoo/Work/audionow/libs_common/libogg/include"/>
+									<listOptionValue builtIn="false" value="/Users/radhoo/Work/audionow/libs_common/libopus/include"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1608412601" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -55,12 +58,12 @@
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.config.macosx.exe.release.1732424038" moduleId="org.eclipse.cdt.core.settings" name="Release">
 				<externalSettings/>
 				<extensions>
+					<extension id="org.eclipse.cdt.core.MachO64" point="org.eclipse.cdt.core.BinaryParser"/>
 					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.MachO64" point="org.eclipse.cdt.core.BinaryParser"/>
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
@@ -100,21 +103,6 @@
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
 		<project id="OpenPlayer.cdt.managedbuild.target.macosx.exe.907014069" name="Executable" projectType="cdt.managedbuild.target.macosx.exe"/>
 	</storageModule>
-	<storageModule moduleId="scannerConfiguration">
-		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.macosx.exe.debug.1089395272;cdt.managedbuild.config.gnu.macosx.exe.debug.1089395272.;cdt.managedbuild.tool.gnu.cpp.compiler.macosx.exe.debug.126871434;cdt.managedbuild.tool.gnu.cpp.compiler.input.27513419">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.macosx.exe.release.1732424038;cdt.managedbuild.config.macosx.exe.release.1732424038.;cdt.managedbuild.tool.gnu.c.compiler.macosx.exe.release.1295351992;cdt.managedbuild.tool.gnu.c.compiler.input.1720462682">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.macosx.exe.release.1732424038;cdt.managedbuild.config.macosx.exe.release.1732424038.;cdt.managedbuild.tool.gnu.cpp.compiler.macosx.exe.release.1637977055;cdt.managedbuild.tool.gnu.cpp.compiler.input.768959628">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.macosx.exe.debug.1089395272;cdt.managedbuild.config.gnu.macosx.exe.debug.1089395272.;cdt.managedbuild.tool.gnu.c.compiler.macosx.exe.debug.845322433;cdt.managedbuild.tool.gnu.c.compiler.input.1608412601">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-		</scannerConfigBuildInfo>
-	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
 		<configuration configurationName="Release">
@@ -125,4 +113,19 @@
 		</configuration>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
+	<storageModule moduleId="scannerConfiguration">
+		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.macosx.exe.debug.1089395272;cdt.managedbuild.config.gnu.macosx.exe.debug.1089395272.;cdt.managedbuild.tool.gnu.cpp.compiler.macosx.exe.debug.126871434;cdt.managedbuild.tool.gnu.cpp.compiler.input.27513419">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.macosx.exe.release.1732424038;cdt.managedbuild.config.macosx.exe.release.1732424038.;cdt.managedbuild.tool.gnu.c.compiler.macosx.exe.release.1295351992;cdt.managedbuild.tool.gnu.c.compiler.input.1720462682">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.macosx.exe.debug.1089395272;cdt.managedbuild.config.gnu.macosx.exe.debug.1089395272.;cdt.managedbuild.tool.gnu.c.compiler.macosx.exe.debug.845322433;cdt.managedbuild.tool.gnu.c.compiler.input.1608412601">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.macosx.exe.release.1732424038;cdt.managedbuild.config.macosx.exe.release.1732424038.;cdt.managedbuild.tool.gnu.cpp.compiler.macosx.exe.release.1637977055;cdt.managedbuild.tool.gnu.cpp.compiler.input.768959628">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+	</storageModule>
 </cproject>
