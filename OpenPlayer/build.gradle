@@ -5,9 +5,6 @@ group = 'com.audionowdigital'
 version = '1.0'
 project.archivesBaseName = 'open-player-android'
 
-dependencies {
-}
-
 android {
 	compileSdkVersion 19
 	buildToolsVersion '19.1'
