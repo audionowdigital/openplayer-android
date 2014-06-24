@@ -1,4 +1,4 @@
-package org.xiph.vorbis.player;
+package org.xiph;
 
 import android.os.Bundle;
 import android.os.Handler;

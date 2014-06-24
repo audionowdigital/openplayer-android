@@ -7,8 +7,8 @@ import android.util.Log;
 import org.xiph.vorbis.decoderjni.DecodeFeed;
 import org.xiph.vorbis.decoderjni.DecodeStreamInfo;
 import org.xiph.vorbis.decoderjni.VorbisDecoder;
-import org.xiph.vorbis.player.PlayerEvents;
-import org.xiph.vorbis.player.PlayerStates;
+import org.xiph.PlayerEvents;
+import org.xiph.PlayerStates;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;

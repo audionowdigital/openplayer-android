@@ -8,8 +8,8 @@ import android.util.Log;
 import org.xiph.opus.decoderjni.DecodeFeed;
 import org.xiph.opus.decoderjni.DecodeStreamInfo;
 import org.xiph.opus.decoderjni.OpusDecoder;
-import org.xiph.opus.player.PlayerEvents;
-import org.xiph.opus.player.PlayerStates;
+import org.xiph.PlayerEvents;
+import org.xiph.PlayerStates;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package org.xiph.opus.player;
+package org.xiph;
 
 import android.util.Log;
 

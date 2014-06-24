@@ -4,17 +4,20 @@ import android.media.AudioTrack;
 import android.os.Handler;
 import android.os.Process;
 import android.util.Log;
+
+import org.xiph.OpenPlayer;
+import org.xiph.PlayerEvents;
+import org.xiph.PlayerStates;
 import org.xiph.opus.decodefeed.ImplDecodeFeed;
 import org.xiph.opus.decoderjni.DecodeFeed;
 import org.xiph.opus.decoderjni.OpusDecoder;
-import org.xiph.opus.player.PlayerStates;
 
 import java.io.InputStream;
 
 /**
  * The OpusPlayer is responsible for decoding a opus bitsream into raw PCM data to play to an {@link AudioTrack}
  */
-public class OpusPlayer implements Runnable {
+public class OpusPlayer implements OpenPlayer {
 
 
     /**
@@ -68,7 +71,7 @@ public class OpusPlayer implements Runnable {
 
 
 
-    public void Play() {
+    public void play() {
     	if (playerState.get() != PlayerStates.READY_TO_PLAY) {
             throw new IllegalStateException("Must be ready first!");
         }
@@ -77,7 +80,7 @@ public class OpusPlayer implements Runnable {
     	decodeFeed.syncNotify();
     }
     
-    public void Pause() {
+    public void pause() {
     	if (playerState.get() != PlayerStates.PLAYING) {
             throw new IllegalStateException("Must be playing first!");
         }
@@ -89,7 +92,7 @@ public class OpusPlayer implements Runnable {
     /**
      * Stops the player and notifies the decode feed
      */
-    public synchronized void Stop() {
+    public synchronized void stop() {
         decodeFeed.onStop();
         // make sure the thread gets unlocked
     	//decodeFeed.syncNotify();

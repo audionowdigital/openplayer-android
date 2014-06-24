@@ -4,6 +4,10 @@ import android.media.AudioTrack;
 import android.os.Handler;
 import android.os.Process;
 import android.util.Log;
+
+import org.xiph.OpenPlayer;
+import org.xiph.PlayerEvents;
+import org.xiph.PlayerStates;
 import org.xiph.vorbis.decodefeed.ImplDecodeFeed;
 import org.xiph.vorbis.decoderjni.DecodeFeed;
 import org.xiph.vorbis.decoderjni.VorbisDecoder;
@@ -13,7 +17,7 @@ import java.io.InputStream;
 /**
  * The VorbisPlayer is responsible for decoding a vorbis bitsream into raw PCM data to play to an {@link AudioTrack}
  */
-public class VorbisPlayer implements Runnable {
+public class VorbisPlayer implements OpenPlayer {
 
 
     /**
@@ -63,7 +67,7 @@ public class VorbisPlayer implements Runnable {
     	new Thread(this).start();
     }
 
-    public void Play() {
+    public void play() {
     	if (playerState.get() != PlayerStates.READY_TO_PLAY) {
             throw new IllegalStateException("Must be ready first!");
         }
@@ -72,7 +76,7 @@ public class VorbisPlayer implements Runnable {
     	decodeFeed.syncNotify();
     }
     
-    public void Pause() {
+    public void pause() {
     	if (playerState.get() != PlayerStates.PLAYING) {
             throw new IllegalStateException("Must be playing first!");
         }
@@ -84,7 +88,7 @@ public class VorbisPlayer implements Runnable {
     /**
      * Stops the player and notifies the decode feed
      */
-    public synchronized void Stop() {
+    public synchronized void stop() {
         decodeFeed.onStop();
         // make sure the thread gets unlocked
     	//decodeFeed.syncNotify();
