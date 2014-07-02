@@ -1,5 +1,7 @@
 package org.xiph.vorbis.decoderjni;
 
+import com.audionowdigital.android.openplayer.DecodeFeed;
+
 /**
  * The native vorbis decoder to be used in conjunction with JNI
  */

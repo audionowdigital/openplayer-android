@@ -1,12 +1,14 @@
 package org.xiph.opus.decoderjni;
 
+import com.audionowdigital.android.openplayer.DecodeFeed;
+
 /**
  * The native vorbis decoder to be used in conjunction with JNI
  */
 public class OpusDecoder {
 
     /**
-     * Load our vorbis-jni library and other dependent libraries
+     * Load our -jni library and other dependent libraries
      */
     static {
         System.loadLibrary("ogg");
