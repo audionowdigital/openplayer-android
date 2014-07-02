@@ -82,7 +82,7 @@ public class Player implements Runnable {
 
 
 
-    public void Play() {
+    public void play() {
     	if (playerState.get() != PlayerStates.READY_TO_PLAY) {
             throw new IllegalStateException("Must be ready first!");
         }
@@ -91,7 +91,7 @@ public class Player implements Runnable {
     	decodeFeed.syncNotify();
     }
     
-    public void Pause() {
+    public void pause() {
     	if (playerState.get() != PlayerStates.PLAYING) {
             throw new IllegalStateException("Must be playing first!");
         }
@@ -103,7 +103,7 @@ public class Player implements Runnable {
     /**
      * Stops the player and notifies the decode feed
      */
-    public synchronized void Stop() {
+    public synchronized void stop() {
         decodeFeed.onStop();
         // make sure the thread gets unlocked
     	//decodeFeed.syncNotify();
