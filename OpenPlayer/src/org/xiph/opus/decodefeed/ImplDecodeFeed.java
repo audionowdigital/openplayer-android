@@ -40,9 +40,9 @@ public class ImplDecodeFeed implements DecodeFeed {
      * The input stream to decode from
      */
     protected InputStream inputStream;
-    
+
     protected long streamLength;
-    
+
     protected long streamSize;
 
     /**
@@ -55,7 +55,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     protected long writtenMiliSeconds = 0;
 
     /**
-     * Stream info as reported in the header 
+     * Stream info as reported in the header
      */
     DecodeStreamInfo streamInfo;
 
@@ -68,7 +68,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      * Creates a decode feed that reads from a file and writes to an {@link AudioTrack}
      *
      */
-    
+
     public ImplDecodeFeed(PlayerStates playerState, PlayerEvents events) {
     	this.playerState = playerState;
         this.events = events;
@@ -104,7 +104,7 @@ public class ImplDecodeFeed implements DecodeFeed {
             this.inputStream.mark((int)streamSize);
         }
     }
-    
+
     /**
      * A pause mechanism that would block current thread when pause flag is set (READY_TO_PLAY)
      */
@@ -120,14 +120,14 @@ public class ImplDecodeFeed implements DecodeFeed {
             }
         }
     }
-    
+
     /**
      * Call notify to control the PAUSE (waiting) state, when the state is changed
      */
     public synchronized void syncNotify() {
     	notify();
     }
-    
+
     /**
      * Triggered from the native {@link VorbisDecoder} that is requesting to read the next bit of opus data
      *
@@ -136,12 +136,15 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @return the amount actually written
      */
     @Override public int onReadOpusData(byte[] buffer, int amountToWrite) {
+				if (inputStream == null) {
+						return 0;
+				}
     	//Log.d(TAG, "onReadOpusData call: " + amountToWrite);
         //If the player is not playing or reading the header, return 0 to end the native decode method
         if (playerState.get() == PlayerStates.STOPPED) {
             return 0;
         }
-        
+
         waitPlay();
 
         //Otherwise read from the file
@@ -183,6 +186,9 @@ public class ImplDecodeFeed implements DecodeFeed {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            catch (OutOfMemoryError e) {
+				e.printStackTrace();
+			}
         }
     }
 
@@ -196,18 +202,18 @@ public class ImplDecodeFeed implements DecodeFeed {
     @Override
     public synchronized void onWritePCMData(short[] pcmData, int amountToRead) {
 		waitPlay();
-			
+
         //If we received data and are playing, write to the audio track
         if (pcmData != null && amountToRead > 0 && audioTrack != null && playerState.isPlaying()) {
             audioTrack.write(pcmData, 0, amountToRead);
             // count data
             writtenPCMData += amountToRead;
-            writtenMiliSeconds += convertBytesToMs(amountToRead); 
+            writtenMiliSeconds += convertBytesToMs(amountToRead);
             // send a notification of progress
             events.sendEvent(PlayerEvents.PLAY_UPDATE, (int) (writtenMiliSeconds / 1000));
-            
+
             // at this point we know all stream parameters, including the sampleRate, use it to compute current time.
-            Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() + 
+            Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() +
             		" time:" + writtenMiliSeconds + " bytes:" + writtenPCMData);
         }
     }
@@ -259,11 +265,11 @@ public class ImplDecodeFeed implements DecodeFeed {
             throw new IllegalArgumentException("Invalid sample rate, must be above 0");
         }
         // TODO: finish initing
-        Log.d(TAG, "onStart call ok (Vendor:" + decodeStreamInfo.getVendor() + ") Track parameters: Title:"+ decodeStreamInfo.getTitle() + " Artist:"+decodeStreamInfo.getArtist() + 
+        Log.d(TAG, "onStart call ok (Vendor:" + decodeStreamInfo.getVendor() + ") Track parameters: Title:"+ decodeStreamInfo.getTitle() + " Artist:"+decodeStreamInfo.getArtist() +
         		" Album:" + decodeStreamInfo.getAlbum() + " Date:" + decodeStreamInfo.getDate() + " Track:" + decodeStreamInfo.getTrack());
 
         streamInfo = decodeStreamInfo;
-        
+
         // we are already playing but track changed
         if (playerState.get() == PlayerStates.PLAYING) {
         	//Stop the audio track, we will restart it
@@ -273,28 +279,28 @@ public class ImplDecodeFeed implements DecodeFeed {
                 audioTrack = null;
             }
         }
-        
+
         //Create the audio track
         int channelConfiguration = decodeStreamInfo.getChannels() == 1 ? AudioFormat.CHANNEL_OUT_MONO : AudioFormat.CHANNEL_OUT_STEREO;
         int minSize = AudioTrack.getMinBufferSize((int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT);
-        audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, (int) decodeStreamInfo.getSampleRate(), channelConfiguration, 
+        audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, (int) decodeStreamInfo.getSampleRate(), channelConfiguration,
         		AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
         audioTrack.play();
-        
-       
+
+
         if (playerState.get() == PlayerStates.READING_HEADER) {
 	        events.sendEvent(PlayerEvents.READY_TO_PLAY);
 	        //We're ready to starting to read actual content
 	        playerState.set(PlayerStates.READY_TO_PLAY);
         }
-        
+
         events.sendEvent(PlayerEvents.TRACK_INFO, decodeStreamInfo.getVendor(),
     			decodeStreamInfo.getTitle(),
     			decodeStreamInfo.getArtist(),
     			decodeStreamInfo.getAlbum(),
     			decodeStreamInfo.getDate(),
     			decodeStreamInfo.getTrack());
-        
+
     }
 
     /**
@@ -308,18 +314,18 @@ public class ImplDecodeFeed implements DecodeFeed {
         }
     }
 
-    
+
 	/**
 	 * returns the number of bytes used by a buffer of given mili seconds, sample rate and channels
 	 * we multiply by 2 to compensate for the 'short' size
 	 */
 	public static int convertMsToBytes(int ms, long sampleRate, long channels ) {
-        return (int)(((long) ms) * sampleRate * channels / 1000) * 2; 
+        return (int)(((long) ms) * sampleRate * channels / 1000) * 2;
     }
 	public int converMsToBytes(int ms) {
 		return convertMsToBytes(ms, streamInfo.getSampleRate(), streamInfo.getChannels());
 	}
-	
+
 	/**
      * returns the number of samples needed to hold a buffer of given mili seconds, sample rate and channels
      */

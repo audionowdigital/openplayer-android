@@ -13,6 +13,7 @@ import org.xiph.PlayerStates;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.OutOfMemoryError;
 
 /**
  * Custom class to easily buffer and decode from a stream and write to an {@link AudioTrack}
@@ -146,6 +147,9 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @return the amount actually written
      */
     @Override public int onReadVorbisData(byte[] buffer, int amountToWrite) {
+			if (inputStream == null) {
+						return 0;
+				}
     	//If the player is not playing or reading the header, return 0 to end the native decode method
         if (playerState.get() == PlayerStates.STOPPED) {
             return 0;
@@ -192,6 +196,9 @@ public class ImplDecodeFeed implements DecodeFeed {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+			catch (OutOfMemoryError e) {
+				e.printStackTrace();
+			}
         }
     }
 
@@ -254,7 +261,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     public void onStart(DecodeStreamInfo decodeStreamInfo) {
 
         Log.d(TAG, "onStart call state:" + playerState.get());
-        
+
         if (playerState.get() != PlayerStates.READING_HEADER &&
         		playerState.get() != PlayerStates.PLAYING) {
             throw new IllegalStateException("Must read header first!");
@@ -266,7 +273,7 @@ public class ImplDecodeFeed implements DecodeFeed {
             throw new IllegalArgumentException("Invalid sample rate, must be above 0");
         }
         // TODO: finish initing
-        Log.d(TAG, "onStart call ok (Vendor:" + decodeStreamInfo.getVendor() + ") Track parameters: Title:"+ decodeStreamInfo.getTitle() + " Artist:"+decodeStreamInfo.getArtist() + 
+        Log.d(TAG, "onStart call ok (Vendor:" + decodeStreamInfo.getVendor() + ") Track parameters: Title:"+ decodeStreamInfo.getTitle() + " Artist:"+decodeStreamInfo.getArtist() +
         		" Album:" + decodeStreamInfo.getAlbum() + " Date:" + decodeStreamInfo.getDate() + " Track:" + decodeStreamInfo.getTrack());
 
 
@@ -281,21 +288,21 @@ public class ImplDecodeFeed implements DecodeFeed {
                 audioTrack = null;
             }
         }
-        	
+
         //Create the audio track
         int channelConfiguration = decodeStreamInfo.getChannels() == 1 ? AudioFormat.CHANNEL_OUT_MONO : AudioFormat.CHANNEL_OUT_STEREO;
         int minSize = AudioTrack.getMinBufferSize((int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT);
         audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, (int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
         audioTrack.play();
 
-        
-        
+
+
         if (playerState.get() == PlayerStates.READING_HEADER) {
         	events.sendEvent(PlayerEvents.READY_TO_PLAY);
         	//We're ready to starting to read actual content
         	playerState.set(PlayerStates.READY_TO_PLAY);
         }
-        
+
         events.sendEvent(PlayerEvents.TRACK_INFO, decodeStreamInfo.getVendor(),
     			decodeStreamInfo.getTitle(),
     			decodeStreamInfo.getArtist(),
@@ -313,7 +320,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         	events.sendEvent(PlayerEvents.READING_HEADER);
             playerState.set(PlayerStates.READING_HEADER);
         }
-        
+
     }
 
 

@@ -1,5 +1,19 @@
 package com.audionowdigital.android.openplayerdemo;
 
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+
+import org.xiph.PlayerEvents;
+import org.xiph.opus.player.OpusPlayer;
+import org.xiph.vorbis.player.VorbisPlayer;
+
 import android.app.Activity;
 import android.os.Bundle;
 import android.os.Environment;
@@ -8,19 +22,13 @@ import android.os.Message;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
-import android.widget.*;
-import android.widget.SeekBar.OnSeekBarChangeListener;
-
-import org.xiph.opus.player.OpusPlayer;
-import org.xiph.vorbis.player.PlayerEvents;
-import org.xiph.vorbis.player.VorbisPlayer;
-
-import java.io.*;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLConnection;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.SeekBar;
+import android.widget.TextView;
 
 
 // This activity demonstrates how to use JNI to encode and decode ogg/vorbis audio
@@ -100,7 +108,7 @@ public class MainActivity extends Activity {
 			@Override public void onClick(View arg0) {
 				if (vorbisPlayer != null && vorbisPlayer.isReadyToPlay()) {
 					logArea.setText("Playing... ");
-					vorbisPlayer.Play();
+					vorbisPlayer.play();
 		        } else 
 		        	logArea.setText("Player not initialized or not ready to play");
 			}
@@ -113,7 +121,7 @@ public class MainActivity extends Activity {
 			@Override public void onClick(View arg0) {
 				if (vorbisPlayer != null && vorbisPlayer.isPlaying() ) {
 					logArea.setText("Paused");
-					vorbisPlayer.Pause();
+					vorbisPlayer.pause();
 				} else
 					logArea.setText("Player not initialized or not playing");
 			}
@@ -126,7 +134,7 @@ public class MainActivity extends Activity {
 			@Override public void onClick(View arg0) {
 				if (vorbisPlayer != null) {
 					logArea.setText("Stopped");
-					vorbisPlayer.Stop();	
+					vorbisPlayer.stop();	
 				}
 				else
 					logArea.setText("Player not initialized");
@@ -222,7 +230,7 @@ public class MainActivity extends Activity {
 				Log.e("XX", "opus:"+opusPlayer + " ready:" + opusPlayer.isReadyToPlay());
 				if (opusPlayer != null && opusPlayer.isReadyToPlay()) {
 					logArea.setText("Playing... ");
-					opusPlayer.Play();
+					opusPlayer.play();
 		        } else 
 		        	logArea.setText("Player not initialized or not ready to play");
 			}
@@ -235,7 +243,7 @@ public class MainActivity extends Activity {
 			@Override public void onClick(View arg0) {
 				if (opusPlayer != null && opusPlayer.isPlaying() ) {
 					logArea.setText("Paused");
-					opusPlayer.Pause();
+					opusPlayer.pause();
 				} else
 					logArea.setText("Player not initialized or not playing");
 			}
@@ -248,7 +256,7 @@ public class MainActivity extends Activity {
 			@Override public void onClick(View arg0) {
 				if (opusPlayer != null) {
 					logArea.setText("Stopped");
-					opusPlayer.Stop();	
+					opusPlayer.stop();	
 				}
 				else
 					logArea.setText("Player not initialized");
