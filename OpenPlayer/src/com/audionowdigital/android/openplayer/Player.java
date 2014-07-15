@@ -85,6 +85,8 @@ public class Player implements Runnable {
     public void play() {
     	if (playerState.get() != PlayerStates.READY_TO_PLAY) {
             //throw new IllegalStateException("Must be ready first!");
+    		Log.d(TAG, "ready first");
+    		stop();
     		return;
         }
     	playerState.set(PlayerStates.PLAYING);
@@ -94,7 +96,8 @@ public class Player implements Runnable {
     
     public void pause() {
     	if (playerState.get() == PlayerStates.READING_HEADER) {
-    		decodeFeed.onStop(); // fix for generic player to avoid throwing an exception
+    		Log.d(TAG, "playing first");
+    		stop(); // fix for generic player to avoid throwing an exception
     		return;
     	}
     	if (playerState.get() != PlayerStates.PLAYING) {
