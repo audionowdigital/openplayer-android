@@ -92,11 +92,6 @@ public class Player implements Runnable {
     }
     
     public void pause() {
-    	/*if (playerState.get() == PlayerStates.READING_HEADER) {
-    		Log.d(TAG, "playing first");
-    		stop(); // fix for generic player to avoid throwing an exception
-    		return;
-    	}*/
     	if (playerState.get() != PlayerStates.PLAYING) {
             throw new IllegalStateException("Must be playing first!");
         }
