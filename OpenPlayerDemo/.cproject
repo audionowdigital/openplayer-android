@@ -20,7 +20,7 @@
 					<folderInfo id="cdt.managedbuild.config.gnu.macosx.exe.debug.1637524403." name="/" resourcePath="">
 						<toolChain id="cdt.managedbuild.toolchain.gnu.macosx.exe.debug.1164746174" name="MacOSX GCC" superClass="cdt.managedbuild.toolchain.gnu.macosx.exe.debug">
 							<targetPlatform id="cdt.managedbuild.target.gnu.platform.macosx.exe.debug.998910043" name="Debug Platform" superClass="cdt.managedbuild.target.gnu.platform.macosx.exe.debug"/>
-							<builder buildPath="${workspace_loc:/OpenPlayerDemo}/Debug" id="cdt.managedbuild.target.gnu.builder.macosx.exe.debug.2082043356" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="cdt.managedbuild.target.gnu.builder.macosx.exe.debug"/>
+							<builder buildPath="${workspace_loc:/OpenNativePlayerDemo}/Debug" id="cdt.managedbuild.target.gnu.builder.macosx.exe.debug.2082043356" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="cdt.managedbuild.target.gnu.builder.macosx.exe.debug"/>
 							<tool id="cdt.managedbuild.tool.macosx.c.linker.macosx.exe.debug.2062584550" name="MacOS X C Linker" superClass="cdt.managedbuild.tool.macosx.c.linker.macosx.exe.debug"/>
 							<tool id="cdt.managedbuild.tool.macosx.cpp.linker.macosx.exe.debug.1155378332" name="MacOS X C++ Linker" superClass="cdt.managedbuild.tool.macosx.cpp.linker.macosx.exe.debug">
 								<inputType id="cdt.managedbuild.tool.macosx.cpp.linker.input.313421754" superClass="cdt.managedbuild.tool.macosx.cpp.linker.input">
@@ -65,7 +65,7 @@
 					<folderInfo id="cdt.managedbuild.config.macosx.exe.release.1580065145." name="/" resourcePath="">
 						<toolChain id="cdt.managedbuild.toolchain.gnu.macosx.exe.release.570259623" name="MacOSX GCC" superClass="cdt.managedbuild.toolchain.gnu.macosx.exe.release">
 							<targetPlatform id="cdt.managedbuild.target.gnu.platform.macosx.exe.release.838087632" name="Debug Platform" superClass="cdt.managedbuild.target.gnu.platform.macosx.exe.release"/>
-							<builder buildPath="${workspace_loc:/OpenPlayerDemo}/Release" id="cdt.managedbuild.target.gnu.builder.macosx.exe.release.218391572" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="cdt.managedbuild.target.gnu.builder.macosx.exe.release"/>
+							<builder buildPath="${workspace_loc:/OpenNativePlayerDemo}/Release" id="cdt.managedbuild.target.gnu.builder.macosx.exe.release.218391572" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="cdt.managedbuild.target.gnu.builder.macosx.exe.release"/>
 							<tool id="cdt.managedbuild.tool.macosx.c.linker.macosx.exe.release.871528403" name="MacOS X C Linker" superClass="cdt.managedbuild.tool.macosx.c.linker.macosx.exe.release"/>
 							<tool id="cdt.managedbuild.tool.macosx.cpp.linker.macosx.exe.release.1646852840" name="MacOS X C++ Linker" superClass="cdt.managedbuild.tool.macosx.cpp.linker.macosx.exe.release">
 								<inputType id="cdt.managedbuild.tool.macosx.cpp.linker.input.570571706" superClass="cdt.managedbuild.tool.macosx.cpp.linker.input">
@@ -95,7 +95,7 @@
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-		<project id="OpenPlayerDemo.cdt.managedbuild.target.macosx.exe.466657523" name="Executable" projectType="cdt.managedbuild.target.macosx.exe"/>
+		<project id="OpenNativePlayerDemo.cdt.managedbuild.target.macosx.exe.466657523" name="Executable" projectType="cdt.managedbuild.target.macosx.exe"/>
 	</storageModule>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>

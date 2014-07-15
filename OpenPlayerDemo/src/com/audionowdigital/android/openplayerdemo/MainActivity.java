@@ -10,9 +10,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 
-import org.xiph.PlayerEvents;
-import org.xiph.opus.player.OpusPlayer;
-import org.xiph.vorbis.player.VorbisPlayer;
+import com.audionowdigital.android.openplayer.Player;
+import com.audionowdigital.android.openplayer.Player.DecoderType;
+import com.audionowdigital.android.openplayer.PlayerEvents;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -34,10 +34,21 @@ import android.widget.TextView;
 // This activity demonstrates how to use JNI to encode and decode ogg/vorbis audio
 public class MainActivity extends Activity {
  
-	private static final String TAG = "MainActivity";
-    // The vorbis player
-    private VorbisPlayer vorbisPlayer;
-    private OpusPlayer opusPlayer;
+	Player.DecoderType type = DecoderType.VORBIS;
+	private static final String TAG = "MainActivity ";
+	/*
+	http://icecast1.pulsradio.com:80/mxHD.ogg
+	http://test01.va.audionow.com:8000/eugen_vorbis
+    http://ice01.va.audionow.com:8000/sagalswahiliopus.ogg
+	http://stream-tx4.radioparadise.com:80/ogg-96
+    http://markosoft.ro/test.ogg
+	http://test01.va.audionow.com:8000/eugen_opus_lo
+	http://test01.va.audionow.com:8000/eugen_opus_hi
+	http://test01.va.audionow.com:8000/eugen_opus
+	http://ai-radio.org:8000/radio.opus
+	*/
+
+	private Player player;
     
     // Playback handler for callbacks
     private Handler playbackHandler;
@@ -57,18 +68,17 @@ public class MainActivity extends Activity {
         
         scrollView.addView(panelV);
         logArea = new TextView(this);
-        logArea.setText("Welcome to OPENPlayer v 1.0.106  Press Init->Play");
+        logArea.setText("Welcome to OPENPlayer v 1.0.107  Press Init->Play");
         panelV.addView(logArea);
         
         Button b = new Button(this);
-        b.setText("init with file (/sdcard/countdown.ogg)");
+        b.setText("init with file");
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
-				// TODO: andrei: buffer size inca nu e folosit, dar va trebui sa finalizez si partea aia, poti pune peste tot 24k
-			    File decodedFile = getLocalFile("countdown.ogg");
+				File decodedFile = getLocalFile(type == Player.DecoderType.VORBIS?"countdown.ogg":"countdown.opus");
                 InputStream decodedStream = getLocalStream(decodedFile);
-                vorbisPlayer.setDataSource(
+                player.setDataSource(
 						//getLocalFile("sita-1.1-final.opus")
                         decodedStream,
                         decodedFile.length(),
@@ -80,35 +90,32 @@ public class MainActivity extends Activity {
         
         final EditText et = new EditText(this);
         et.setTextSize(10);
-        et.setText(
-        		//"http://icecast1.pulsradio.com:80/mxHD.ogg"
-        		//"http://stream-tx4.radioparadise.com:80/ogg-96"
-        		"http://icecast1.pulsradio.com:80/mxHD.ogg"
-        		);
-        //http://test01.va.audionow.com:8000/eugen_vorbis");//http://markosoft.ro/test.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
+        if (type == Player.DecoderType.VORBIS)
+        	et.setText("http://icecast1.pulsradio.com:80/mxHD.ogg");
+        else
+        	et.setText("http://ai-radio.org:8000/radio.opus");
+        
         panelV.addView(et);
         
         b = new Button(this);
-        b.setText("VORBIS init with URL");
+        b.setText("init with URL");
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
-				// String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
-		    	// String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
+				Log.d(TAG, "Set source:" + et.getEditableText().toString());
 				InputStream urlStrem = getStreamURL(et.getEditableText().toString());
-                vorbisPlayer.setDataSource(urlStrem, urlContentLength, DEBUG_PODCAST_LENGTH);
+				player.setDataSource(urlStrem, urlContentLength, DEBUG_PODCAST_LENGTH);
 		    }
 		});
         panelV.addView(b);
-
 
         b = new Button(this);
         b.setText("Play");
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
-				if (vorbisPlayer != null && vorbisPlayer.isReadyToPlay()) {
+				if (player != null && player.isReadyToPlay()) {
 					logArea.setText("Playing... ");
-					vorbisPlayer.play();
+					player.play();
 		        } else 
 		        	logArea.setText("Player not initialized or not ready to play");
 			}
@@ -119,9 +126,9 @@ public class MainActivity extends Activity {
         b.setText("Pause");
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
-				if (vorbisPlayer != null && vorbisPlayer.isPlaying() ) {
+				if (player != null && player.isPlaying() ) {
 					logArea.setText("Paused");
-					vorbisPlayer.pause();
+					player.pause();
 				} else
 					logArea.setText("Player not initialized or not playing");
 			}
@@ -132,9 +139,9 @@ public class MainActivity extends Activity {
         b.setText("Stop");
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
-				if (vorbisPlayer != null) {
+				if (player != null) {
 					logArea.setText("Stopped");
-					vorbisPlayer.stop();	
+					player.stop();	
 				}
 				else
 					logArea.setText("Player not initialized");
@@ -147,149 +154,14 @@ public class MainActivity extends Activity {
         seekBar.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
         seekBar.setMax(100);
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                Log.d("SEEK", i+"");
-                vorbisPlayer.setPosition(i);
-
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-
-            }
+            @Override public void onProgressChanged(SeekBar seekBar, int i, boolean b) { Log.d("SEEK", i+""); player.setPosition(i); }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
         
         panelV.addView(seekBar);
         
-        //------------------- OPUS -------------- //
-        final EditText etOpus = new EditText(this);
-        etOpus.setTextSize(10);
-        //etOpus.setText("http://icecast1.pulsradio.com:80/mxHD.ogg"); //http://test01.va.audionow.com:8000/eugen_vorbis
-        //http:\/\/test01.va.audionow.com:8000\/eugen_opus_lo",
-        //http:\/\/test01.va.audionow.com:8000\/eugen_opus_hi","type":"opus"
-        //etOpus.setText("http://test01.va.audionow.com:8000/eugen_opus");
-        //etOpus.setText("http://ai-radio.org:8000/radio.opus");
-        //etOpus.setText("http://ice01.va.audionow.com:8000/sagalswahiliopus.ogg");
-        etOpus.setText("http://ice01.va.audionow.com:8000/PowerFMJamaicaopus.ogg");
-        
-        panelV.addView(etOpus);
-        
-        b = new Button(this);
-        b.setText("OPUS init with URL");
-        b.setOnClickListener(new OnClickListener() {
-			@Override public void onClick(View arg0) {
-				logArea.setText("");
-				// String url = "http://test01.va.audionow.com:8000/eugen_vorbis";
-		    	// String url = "http://icecast1.pulsradio.com:80/mxHD.ogg";
-				Log.d(TAG, "init with:"+etOpus.getEditableText().toString());
-				opusPlayer.setDataSource(getStreamURL(etOpus.getEditableText().toString()), -1, DEBUG_PODCAST_LENGTH);
-		    }
-		});
-        panelV.addView(b);
-
-        LinearLayout h = new LinearLayout(this);
-        h.setOrientation(LinearLayout.HORIZONTAL);
-        panelV.addView(h);
-        
-        b = new Button(this);
-        b.setText("OPUS Init File #1");
-        b.setOnClickListener(new OnClickListener() {
-            @Override public void onClick(View arg0) {
-                logArea.setText("");
-                Log.d(TAG, "init with file");
-                File decodedFile = getLocalFile("countdown.opus");
-                InputStream decodedStream = getLocalStream(decodedFile);
-                opusPlayer.setDataSource(decodedStream, decodedFile.length(), DEBUG_PODCAST_LENGTH);
-            }
-        });
-        h.addView(b);
-        
-        b = new Button(this);
-        b.setText("OPUS Init File #2");
-        b.setOnClickListener(new OnClickListener() {
-            @Override public void onClick(View arg0) {
-                logArea.setText("");
-                Log.d(TAG, "init with file");
-                File decodedFile = getLocalFile("test5.opus");
-                InputStream decodedStream = getLocalStream(decodedFile);
-                opusPlayer.setDataSource(decodedStream, decodedFile.length(), DEBUG_PODCAST_LENGTH);
-            }
-        });
-        h.addView(b);
-
-        b = new Button(this);
-        b.setText("Opus Play");
-        b.setOnClickListener(new OnClickListener() {
-			@Override public void onClick(View arg0) {
-				Log.e("XX", "opus:"+opusPlayer + " ready:" + opusPlayer.isReadyToPlay());
-				if (opusPlayer != null && opusPlayer.isReadyToPlay()) {
-					logArea.setText("Playing... ");
-					opusPlayer.play();
-		        } else 
-		        	logArea.setText("Player not initialized or not ready to play");
-			}
-		});
-        panelV.addView(b);
-        
-        b = new Button(this);
-        b.setText("Opus Pause");
-        b.setOnClickListener(new OnClickListener() {
-			@Override public void onClick(View arg0) {
-				if (opusPlayer != null && opusPlayer.isPlaying() ) {
-					logArea.setText("Paused");
-					opusPlayer.pause();
-				} else
-					logArea.setText("Player not initialized or not playing");
-			}
-		});
-        panelV.addView(b);
-        
-        b = new Button(this);
-        b.setText("Opus Stop");
-        b.setOnClickListener(new OnClickListener() {
-			@Override public void onClick(View arg0) {
-				if (opusPlayer != null) {
-					logArea.setText("Stopped");
-					opusPlayer.stop();	
-				}
-				else
-					logArea.setText("Player not initialized");
-			}
-		});
-        panelV.addView(b);
-        
-
-        seekBar = new SeekBar(this);
-        seekBar.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
-        seekBar.setMax(100);
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                Log.d("SEEK", i+"");
-                opusPlayer.setPosition(i);
-
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-
-            }
-        });
-        
-        panelV.addView(seekBar);
-        
-        //------------------------------ //
+       
         playbackHandler = new Handler() {
             @Override
             public void handleMessage(Message msg) {
@@ -311,14 +183,6 @@ public class MainActivity extends Activity {
                         break;
                     case PlayerEvents.TRACK_INFO:
                     	Bundle data = msg.getData();
-                    	/* track details include
-                    	 * data.getString("vendor")
-                    	 * data.getString("title")
-                    	 * data.getString("artist")
-                    	 * data.getString("album")
-                    	 * data.getString("date")
-                    	 * data.getString("track")
-                    	*/
                     	logArea.setText("title:" + data.getString("title") + " artist:" + data.getString("artist") + " album:"+ data.getString("album") + 
                     			" date:" + data.getString("date") + " track:" + data.getString("track"));
                     	break;
@@ -326,17 +190,15 @@ public class MainActivity extends Activity {
             }
         };
 
-        // create the vorbis player
-        vorbisPlayer = new VorbisPlayer( playbackHandler);
         
         // quick test for a quick player
-        opusPlayer = new OpusPlayer( playbackHandler);
+        player = new Player( playbackHandler, type);
         
     }
 
  
 	private File getLocalFile(String fileOnSdCard) {
-		File fileToPlay = new File(Environment.getExternalStorageDirectory(), fileOnSdCard);//"tsfh - arc.ogg");//test-katie.ogg");
+		File fileToPlay = new File(Environment.getExternalStorageDirectory(), fileOnSdCard);
         return fileToPlay;
 //        try {
 //            return new BufferedInputStream(new FileInputStream(fileToPlay));
