@@ -84,10 +84,7 @@ public class Player implements Runnable {
 
     public void play() {
     	if (playerState.get() != PlayerStates.READY_TO_PLAY) {
-            //throw new IllegalStateException("Must be ready first!");
-    		Log.d(TAG, "ready first");
-    		stop();
-    		return;
+            throw new IllegalStateException("Must be ready first!");    		
         }
     	playerState.set(PlayerStates.PLAYING);
     	// make sure the thread gets unlocked
@@ -95,14 +92,13 @@ public class Player implements Runnable {
     }
     
     public void pause() {
-    	if (playerState.get() == PlayerStates.READING_HEADER) {
+    	/*if (playerState.get() == PlayerStates.READING_HEADER) {
     		Log.d(TAG, "playing first");
     		stop(); // fix for generic player to avoid throwing an exception
     		return;
-    	}
+    	}*/
     	if (playerState.get() != PlayerStates.PLAYING) {
-            //throw new IllegalStateException("Must be playing first!");
-    		return;
+            throw new IllegalStateException("Must be playing first!");
         }
     	playerState.set(PlayerStates.READY_TO_PLAY);
     	// make sure the thread gets locked
