@@ -139,7 +139,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         try {
             int read = inputStream.read(buffer, 0, amountToWrite);
             return read == -1 ? 0 : read;
-        } catch (IOException e) {
+        } catch (Exception e) {
             //There was a problem reading from the file
             Log.e(TAG, "Failed to read opus data from file.  Aborting.", e);
             return 0;
