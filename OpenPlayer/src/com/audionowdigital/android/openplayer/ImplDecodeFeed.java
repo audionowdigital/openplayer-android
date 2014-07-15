@@ -223,9 +223,13 @@ public class ImplDecodeFeed implements DecodeFeed {
 
             //Stop the audio track
             if (audioTrack != null) {
-                audioTrack.stop();
-                audioTrack.release();
-                audioTrack = null;
+            	try {
+	                audioTrack.stop();
+	                audioTrack.release();
+	                audioTrack = null;
+            	} catch (Exception ex) {
+            		Log.e(TAG, "Audiotrack stop ex:"+ex.getMessage());
+            	}
             }
         }
 
@@ -262,9 +266,13 @@ public class ImplDecodeFeed implements DecodeFeed {
         if (playerState.get() == PlayerStates.PLAYING) {
         	//Stop the audio track, we will restart it
             if (audioTrack != null) {
-                audioTrack.stop();
-                audioTrack.release();
-                audioTrack = null;
+	            try {
+	                audioTrack.stop();
+	                audioTrack.release();
+	                audioTrack = null;
+	        	} catch (Exception ex) {
+	        		Log.e(TAG, "Audiotrack stop ex:"+ex.getMessage());
+	        	}
             }
         }
         
