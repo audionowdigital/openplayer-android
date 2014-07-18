@@ -83,6 +83,13 @@ public class Player implements Runnable {
 
 
     public void play() {
+        if (playerState.get() == PlayerStates.READING_HEADER){
+            stop();
+            return;
+        }
+        if (playerState.get() == PlayerStates.STOPPED){
+            return;
+        }
     	if (playerState.get() != PlayerStates.READY_TO_PLAY) {
             throw new IllegalStateException("Must be ready first!");    		
         }
@@ -92,6 +99,17 @@ public class Player implements Runnable {
     }
     
     public void pause() {
+        if (playerState.get() == PlayerStates.READING_HEADER){
+            stop();
+            return;
+        }
+        if (playerState.get() == PlayerStates.READY_TO_PLAY){
+            stop();
+            return;
+        }
+        if (playerState.get() == PlayerStates.STOPPED){
+            return;
+        }
     	if (playerState.get() != PlayerStates.PLAYING) {
             throw new IllegalStateException("Must be playing first!");
         }
@@ -187,5 +205,5 @@ public class Player implements Runnable {
     public int getCurrentPosition(){
         return decodeFeed.getCurrentPosition();
     }
-   
+
 }
