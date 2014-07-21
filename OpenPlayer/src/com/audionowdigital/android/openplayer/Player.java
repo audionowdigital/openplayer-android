@@ -31,7 +31,7 @@ public class Player implements Runnable {
     /**
      * The decode feed to read and write pcm/encoded data respectively
      */
-    private final ImplDecodeFeed decodeFeed;
+    private  ImplDecodeFeed decodeFeed;
 
     /**
      * Current state of the player
@@ -64,7 +64,11 @@ public class Player implements Runnable {
     	 else 
     		 VorbisDecoder.initJni(1);
     }
-    
+
+    public void stopAudioTrack(){
+        decodeFeed.stopAudioTrack();
+    }
+
     /**
      * Set an input stream as data source and starts reading from it
      * @param streamToDecode the stream to read from 
