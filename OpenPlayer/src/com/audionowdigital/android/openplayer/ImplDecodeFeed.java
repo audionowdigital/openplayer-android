@@ -29,7 +29,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     /**
      * The audio track to write the raw pcm bytes to
      */
-    protected AudioTrack audioTrack;
+    protected static AudioTrack audioTrack;
 
     /**
      * The input stream to decode from
@@ -47,6 +47,8 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     protected long writtenMiliSeconds = 0;
 
+   static int count;
+
     /**
      * Stream info as reported in the header 
      */
@@ -56,9 +58,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      * Creates a decode feed that reads from a file and writes to an {@link AudioTrack}
      *
      */
-
-    private static float count=0;
-
+    
     public ImplDecodeFeed(PlayerStates playerState, PlayerEvents events) {
     	this.playerState = playerState;
         this.events = events;
@@ -201,18 +201,32 @@ public class ImplDecodeFeed implements DecodeFeed {
             events.sendEvent(PlayerEvents.PLAY_UPDATE, (int) (writtenMiliSeconds / 1000));
             
             // at this point we know all stream parameters, including the sampleRate, use it to compute current time.
-            Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() + 
-            		" time:" + writtenMiliSeconds + " bytes:" + writtenPCMData);
+            //Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() +  " time:" + writtenMiliSeconds + " bytes:" + writtenPCMData);
         }
     }
 
+    public void stopAudioTrack() {
+        //Stop the audio track
+        if (audioTrack != null) {
+            Log.d(TAG, "Audiotrack flush");
+            audioTrack.flush();
+            try {
+                audioTrack.stop();
+            } catch (Exception ex) {
+                Log.e(TAG, "Audiotrack stop ex:"+ex.getMessage());
+            }
+            audioTrack = null;
+
+        }
+    }
     /**
      * Called when decoding has completed and we consumed all input data
      */
     @Override
     public synchronized void onStop() {
         if (!playerState.isStopped()) {
-        	writtenPCMData = 0; writtenMiliSeconds = 0;
+        	writtenPCMData = 0;
+            writtenMiliSeconds = 0;
             //Closes the file input stream
             if (inputStream != null) {
                 try {
@@ -223,32 +237,8 @@ public class ImplDecodeFeed implements DecodeFeed {
                 inputStream = null;
             }
 
-            Log.d("TEST","onStop audiotrack="+audioTrack);
-            //Stop the audio track
-            if (audioTrack != null) {
-                //Log.d("TEST","onStop audiotrack state: "+myTrack.getState());
-                /*if (audiotrack.getState()==AudioTrack.STATE_INITIALIZED){
-                    Log.d("TEST","onStop: audiotrack isn`t null: "+myTrack);
-                    try {
-                        audiotrack.stop();
-                        //audiotrack.pause();
-                        //audiotrack.flush();
-                        //audiotrack.release();
-                        count--;
-                        Log.d("TEST","onStop after release: "+count);
-                        if( audiotrack.getState() != AudioTrack.STATE_UNINITIALIZED){
-                            Log.d("TEST","onStop, after release, audiotrack state is not UNINITIALIZED");
-                        }
-                        //audioTrack = null;
-                        Log.d("TEST","audiotrack="+myTrack);
-                    } catch (Exception ex) {
-                        Log.e("TEST", "Audiotrack onStop stop ex:"+ex.getMessage());
-                    }
-                }*/
-                stopAt();
-            }
+            stopAudioTrack();
         }
-
         //Set our state to stopped
         playerState.set(PlayerStates.STOPPED);
     }
@@ -260,11 +250,14 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     @Override
     public void onStart(long sampleRate, long channels, String vendor, String title, String artist, String album, String date, String track)    
-    {
+ {
     	DecodeStreamInfo decodeStreamInfo = new DecodeStreamInfo(sampleRate, channels, vendor, title, artist, album, date, track);
+        Log.e(TAG, "onStart state:" + playerState.get());
+
     	if (playerState.get() != PlayerStates.READING_HEADER &&
         		playerState.get() != PlayerStates.PLAYING) {
-            throw new IllegalStateException("Must read header first!");
+            //throw new IllegalStateException("Must read header first!");
+            return;
         }
         if (decodeStreamInfo.getChannels() != 1 && decodeStreamInfo.getChannels() != 2) {
             throw new IllegalArgumentException("Channels can only be one or two");
@@ -273,58 +266,25 @@ public class ImplDecodeFeed implements DecodeFeed {
             throw new IllegalArgumentException("Invalid sample rate, must be above 0");
         }
         // TODO: finish initing
-        Log.d("TEST", "onStart call ok (Vendor:" + decodeStreamInfo.getVendor() + ") Track parameters: Title:"+ decodeStreamInfo.getTitle() + " Artist:"+decodeStreamInfo.getArtist() +
+        Log.d(TAG, "onStart call ok (Vendor:" + decodeStreamInfo.getVendor() + ") Track parameters: Title:"+ decodeStreamInfo.getTitle() + " Artist:"+decodeStreamInfo.getArtist() + 
         		" Album:" + decodeStreamInfo.getAlbum() + " Date:" + decodeStreamInfo.getDate() + " Track:" + decodeStreamInfo.getTrack());
 
         streamInfo = decodeStreamInfo;
-
-        Log.d("TEST","Player onStart state: "+playerState.get());
-
+        
         // we are already playing but track changed
-        if (playerState.get() == PlayerStates.PLAYING || playerState.get() == PlayerStates.READY_TO_PLAY || playerState.get() == PlayerStates.READING_HEADER) {
-                Log.d("TEST", "Audiotrack onStart audiotrack: "+audioTrack);
-                //Stop the audio track, we will restart it
-
-                if (audioTrack != null) {
-                    /*Log.d("TEST", "Audiotrack state:"+audioTrack.getState());
-                    if (audiotrack.getState()==AudioTrack.STATE_INITIALIZED){
-                    Log.d("TEST", "Audiotrack is not null");
-                    try {
-                        audiotrack.stop();
-                        //audiotrack.pause();
-                        //audiotrack.flush();
-                        //audiotrack.release();
-                        //count--;
-                        //Log.d("TEST","onStart after release: "+count);
-                        if( audiotrack.getState() != AudioTrack.STATE_UNINITIALIZED){
-                            Log.d("TEST","onStart, after release, audiotrack state is not UNINITIALIZED");
-                        }
-                        //audioTrack = null;
-                    } catch (Exception ex) {
-                        Log.e("TEST", "Audiotrack onStart stop ex:"+ex.getMessage());
-                    }
-                }*/
-                    //audioTrack.flush();
-                    //audioTrack.release();
-                    //audioTrack=null;
-                    stopAt();
-            }
+        if (playerState.get() != PlayerStates.STOPPED) {
+            stopAudioTrack();
         }
         
         //Create the audio track
         int channelConfiguration = decodeStreamInfo.getChannels() == 1 ? AudioFormat.CHANNEL_OUT_MONO : AudioFormat.CHANNEL_OUT_STEREO;
         int minSize = AudioTrack.getMinBufferSize((int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT);
-
-        Log.d("TEST","onStart, before the creation of a new audiotrack:"+audioTrack);
-        if (audioTrack!=null) {
-            if (audioTrack.getState() != AudioTrack.STATE_UNINITIALIZED) {
-                Log.d("TEST", "onStart, before the creation of a new audiotrack. State isn`t UNINITIALIZED");
-            }
-        }
         audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, (int) decodeStreamInfo.getSampleRate(), channelConfiguration, 
         		AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
-        count++;
-        Log.d("TEST","onStart after the creation of audiotrack: "+count);
+     count ++;
+
+     Log.e(TAG, "New AudioTrack inc counter: <<<< " + count);
+
         audioTrack.play();
         
        
@@ -397,13 +357,5 @@ public class ImplDecodeFeed implements DecodeFeed {
     }
     public int convertSamplesToMs( int samples) {
         return convertSamplesToMs(samples, streamInfo.getSampleRate(), streamInfo.getChannels());
-    }
-
-    public synchronized void stopAt(){
-        audioTrack.flush();
-        audioTrack.release();
-        audioTrack=null;
-        count--;
-        Log.d("TEST","stopAt after audiotrack release: "+count);
     }
 }
