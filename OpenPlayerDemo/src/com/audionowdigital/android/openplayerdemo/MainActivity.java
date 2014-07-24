@@ -34,7 +34,7 @@ import android.widget.TextView;
 // This activity demonstrates how to use JNI to encode and decode ogg/vorbis audio
 public class MainActivity extends Activity {
  
-	Player.DecoderType type = DecoderType.VORBIS;
+	Player.DecoderType type = DecoderType.OPUS;
 	private static final String TAG = "MainActivity ";
 	/*
 	http://icecast1.pulsradio.com:80/mxHD.ogg
@@ -55,7 +55,8 @@ public class MainActivity extends Activity {
 
     // Text view to show logged messages
     private TextView logArea;
-
+    private SeekBar seekBar;
+    
     private int DEBUG_PODCAST_LENGTH = 200;
     // Creates and sets our activities layout
     @Override public void onCreate(Bundle savedInstanceState) {
@@ -76,13 +77,9 @@ public class MainActivity extends Activity {
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
-				File decodedFile = getLocalFile(type == Player.DecoderType.VORBIS?"countdown.ogg":"countdown.opus");
-                InputStream decodedStream = getLocalStream(decodedFile);
-                player.setDataSource(
-						//getLocalFile("sita-1.1-final.opus")
-                        decodedStream,
-                        decodedFile.length(),
-                        DEBUG_PODCAST_LENGTH
+				player.setDataSource(
+						type == Player.DecoderType.VORBIS?"/sdcard/countdown.ogg":"/sdcard/countdown.opus",
+                        11
 						);//test-katie.ogg");
 		    }
 		});
@@ -92,8 +89,10 @@ public class MainActivity extends Activity {
         et.setTextSize(10);
         if (type == Player.DecoderType.VORBIS)
         	et.setText("http://icecast1.pulsradio.com:80/mxHD.ogg");
-        else
-        	et.setText("http://ai-radio.org:8000/radio.opus");
+        else {
+        	//et.setText("http://ai-radio.org:8000/radio.opus");
+        	et.setText("http://ice01.va.audionow.com/audiocast/caraibes/ranmasse.ogg");
+        }
         
         panelV.addView(et);
         
@@ -103,8 +102,8 @@ public class MainActivity extends Activity {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
 				Log.d(TAG, "Set source:" + et.getEditableText().toString());
-				InputStream urlStrem = getStreamURL(et.getEditableText().toString());
-				player.setDataSource(urlStrem, urlContentLength, DEBUG_PODCAST_LENGTH);
+				//InputStream urlStrem = getStreamURL(et.getEditableText().toString());
+				player.setDataSource(et.getEditableText().toString(), 17169);
 		    }
 		});
         panelV.addView(b);
@@ -150,11 +149,15 @@ public class MainActivity extends Activity {
         panelV.addView(b);
         
 
-        SeekBar seekBar = new SeekBar(this);
+        seekBar = new SeekBar(this);
         seekBar.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
         seekBar.setMax(100);
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar seekBar, int i, boolean b) { Log.d("SEEK", i+""); player.setPosition(i); }
+            @Override public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+            	if (b) {
+            		Log.d("SEEK", i+""); player.setPosition(i);
+            	}
+            }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
@@ -180,6 +183,7 @@ public class MainActivity extends Activity {
                         break;
                     case PlayerEvents.PLAY_UPDATE:
                     	logArea.setText("Playing:" + (msg.arg1 ) + "s");
+                    	seekBar.setProgress( (int) (msg.arg1 * 100/ player.getDuration()) );
                         break;
                     case PlayerEvents.TRACK_INFO:
                     	Bundle data = msg.getData();
@@ -196,46 +200,6 @@ public class MainActivity extends Activity {
         
     }
 
- 
-	private File getLocalFile(String fileOnSdCard) {
-		File fileToPlay = new File(Environment.getExternalStorageDirectory(), fileOnSdCard);
-        return fileToPlay;
-//        try {
-//            return new BufferedInputStream(new FileInputStream(fileToPlay));
-//        } catch (FileNotFoundException e) {}
-//        return null;
-	}
-
-    private InputStream getLocalStream(File fileToPlay) {
-        try {
-            return new BufferedInputStream(new FileInputStream(fileToPlay));
-        } catch (FileNotFoundException e) {}
-        return null;
-    }
-    int urlContentLength = -1;
-	private InputStream getStreamURL(String url) {
-		try {
-			URLConnection cn = new URL( url ).openConnection();
-			cn.connect();
-            urlContentLength = cn.getContentLength();
-			return cn.getInputStream();
-		} catch (MalformedURLException e1) {
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-        
-        // check URL for type of content! other parameters can be accessed here!
-        /*for (java.util.Map.Entry<String, java.util.List<String>> me : cn.getHeaderFields().entrySet()) {
-            if ("content-type".equalsIgnoreCase( me.getKey())) {
-                for (String s : me.getValue()) {
-                    String ct = s;
-                    Log.e(TAG, "content:" + s); // 04-18 13:20:51.121: E/Player(7417): content:audio/aacp
-                }
-            }
-        }*/
-		return null;
-	}
 	
 
 

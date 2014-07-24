@@ -43,7 +43,7 @@ public class Player implements Runnable {
      */
     private PlayerEvents events = null;
 
-    
+    private long streamSecondsLength = -1;
 
     public Player(Handler handler, DecoderType type) {
     	 if (handler == null) {
@@ -73,18 +73,21 @@ public class Player implements Runnable {
      * Set an input stream as data source and starts reading from it
      * @param streamToDecode the stream to read from 
      */
-    public void setDataSource(InputStream streamToDecode, long streamSize, long streamLength) {
+    public void setDataSource(String path, long streamSecondsLength) {
     	if (playerState.get() != PlayerStates.STOPPED) {
             throw new IllegalStateException("Must be stopped to change source!");
         }
-    	Log.d(TAG, "setDataSource:" + streamLength);
+    	Log.d(TAG, "setDataSource: given length:" + streamSecondsLength);
     	// set an input stream as data source
-    	decodeFeed.setData(streamToDecode, streamSize, streamLength);
+    	this.streamSecondsLength = streamSecondsLength;
+    	decodeFeed.setData(path, streamSecondsLength);
     	// start the thread, will go directly to "run" method
     	new Thread(this).start();
     }
 
-
+    public long getDuration() {
+    	return streamSecondsLength;
+    }
 
     public void play() {
     	if (playerState.get() != PlayerStates.READY_TO_PLAY) {
