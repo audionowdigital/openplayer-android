@@ -34,9 +34,9 @@ public class ImplDecodeFeed implements DecodeFeed {
     /**
      * The input stream to decode from
      */
-    protected InputStream inputStream;
-    protected long streamLength;
-    protected long streamSize;
+    protected DataSource data;
+    protected long streamSecondsLength;
+    
 
     /**
      * The amount of written pcm data to the audio track
@@ -75,24 +75,25 @@ public class ImplDecodeFeed implements DecodeFeed {
      * Pass a stream as data source
      * @param streamToDecode
      */
-    public void setData(InputStream streamToDecode, long streamSize, long streamLength) {
-    	if (streamToDecode == null) {
-            throw new IllegalArgumentException("Stream to decode must not be null.");
+    public void setData(String path, long streamSecondsLength) {
+    	if (path == null) {
+            throw new IllegalArgumentException("Path to decode must not be null.");
         }
-        this.streamLength = streamLength;
-        this.streamSize = streamSize;
+        this.streamSecondsLength = streamSecondsLength;
+        
 
         // Make sure that for podcasts, the stream is a BufferedInputStream
-        if (!(streamToDecode instanceof BufferedInputStream) && streamSize > 0) {
+       /* if (!(streamToDecode instanceof BufferedInputStream) && streamSize > 0) {
             this.inputStream = new BufferedInputStream(streamToDecode);
-        } else {
-            this.inputStream = streamToDecode;
+        } else {*/
+        Log.d(TAG, "Creating a new data source obj");
+        data = new DataSource(path);
 
-        }
+        /*}
           if (streamSize > 0) {
             this.inputStream.markSupported();
             this.inputStream.mark((int)streamSize);
-        }
+        }*/
     }
     
     /**
@@ -100,7 +101,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     public synchronized void waitPlay(){
         while(playerState.get() == PlayerStates.READY_TO_PLAY) {
-            if (streamLength == -1){
+            if (streamSecondsLength == -1){
                 writtenMiliSeconds = 0;
             }
             try {
@@ -126,7 +127,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @return the amount actually written
      */
     @Override public int onReadEncodedData(byte[] buffer, int amountToWrite) {
-    	if (inputStream == null) {
+    	if (!data.isSourceValid()) {
     		return 0;
     	}
     	//Log.d(TAG, "onReadOpusData call: " + amountToWrite);
@@ -139,7 +140,7 @@ public class ImplDecodeFeed implements DecodeFeed {
 
         //Otherwise read from the file
         try {
-            int read = inputStream.read(buffer, 0, amountToWrite);
+            int read = data.read(buffer, 0, amountToWrite);
             return read == -1 ? 0 : read;
         } catch (Exception e) {
             //There was a problem reading from the file
@@ -155,26 +156,19 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     @Override
     public void setPosition(int percent) {
-        if (streamSize < 0) {
+        if (streamSecondsLength < 0) {
             throw new IllegalStateException("Stream length must be a positive number");
         }
-        long seekPosition = percent * streamSize / 100;
-        if (inputStream!=null) {
+        long seekPosition = percent * data.getSourceLength() / 100;
+        if (data.isSourceValid()) {
             try {
                 audioTrack.flush();
-                inputStream.reset();
-                long skippedBytes = 0;
-                long skipSize;
-                while (skippedBytes < seekPosition) {
-                    skipSize = seekPosition - skippedBytes;
-                    skippedBytes += inputStream.skip(skipSize);
-                }
-                Log.d("SEEK ","  " + inputStream.available() + " SKIP_POS  " + seekPosition + " SKIPPED:  " + skippedBytes + " SEC:" + streamLength + "  " + getCurrentPosition());
-                writtenMiliSeconds = percent * streamLength / 100 * 1000; // save in millis for now.
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            catch (OutOfMemoryError e) {
+                //inputStream.reset();
+                //data.seekTo()
+                Log.d(TAG,"SKIP_POS  " + seekPosition );
+                data.skip(seekPosition);
+                writtenMiliSeconds = percent * streamSecondsLength / 100 * 1000; // save in millis for now.
+            } catch (OutOfMemoryError e) {
             	e.printStackTrace();
             }
         }
@@ -228,14 +222,8 @@ public class ImplDecodeFeed implements DecodeFeed {
         	writtenPCMData = 0;
             writtenMiliSeconds = 0;
             //Closes the file input stream
-            if (inputStream != null) {
-                try {
-                    inputStream.close();
-                } catch (IOException e) {
-                    Log.e(TAG, "Failed to close file input stream", e);
-                }
-                inputStream = null;
-            }
+            if (data.isSourceValid())
+            	data.release();
 
             stopAudioTrack();
         }
