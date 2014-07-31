@@ -39,7 +39,10 @@ public class DataSource  {
 			                   [sourceUrl path], [sourceUrl host], offset];
 			 */
 			cn.connect();
-			length = cn.getContentLength();
+			
+			if (offset == 0)
+				length = cn.getContentLength();
+			
 			return cn.getInputStream();
 		} catch (MalformedURLException e ) { e.printStackTrace();
 		} catch (IOException e) { e.printStackTrace(); }
@@ -106,6 +109,10 @@ public class DataSource  {
 		dataSource = DATA_SRC_INVALID;
 	}
 	
+	/**
+	 * 
+	 * @return the current track size in bytes, or -1 for live streams
+	 */
 	public long getSourceLength() {
 		return length;
 	}

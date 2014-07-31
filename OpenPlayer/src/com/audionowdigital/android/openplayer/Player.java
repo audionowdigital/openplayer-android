@@ -209,6 +209,10 @@ public class Player implements Runnable {
         decodeFeed.setPosition(percentage);
     }
     
+    /**
+     * 
+     * @return returns the player position in track in seconds
+     */
     public int getCurrentPosition(){
         return decodeFeed.getCurrentPosition();
     }

@@ -69,7 +69,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @return the second where the current play position is in the stream
      */
     public int getCurrentPosition() {
-    	return (int) (writtenMiliSeconds);
+    	return (int) (writtenMiliSeconds / 1000);
     }
     /**
      * Pass a stream as data source
@@ -165,9 +165,10 @@ public class ImplDecodeFeed implements DecodeFeed {
                 audioTrack.flush();
                 //inputStream.reset();
                 //data.seekTo()
-                Log.d(TAG,"SKIP_POS  " + seekPosition );
+                Log.d(TAG,"SKIP_POS  percent:" + percent + " offset:" + seekPosition + " source_len:" +  data.getSourceLength());
                 data.skip(seekPosition);
-                writtenMiliSeconds = percent * streamSecondsLength / 100 * 1000; // save in millis for now.
+                writtenMiliSeconds = percent * streamSecondsLength * 10; // that is /100 * 1000 - save in millis for now.
+                Log.e("XX", "Pos sec:" + writtenMiliSeconds + " Min:"+ (writtenMiliSeconds / 60000) + ":"+((writtenMiliSeconds/1000)%60) );
             } catch (OutOfMemoryError e) {
             	e.printStackTrace();
             }
