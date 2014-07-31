@@ -169,10 +169,10 @@ public class ImplDecodeFeed implements DecodeFeed {
                 audioTrack.flush();
                 //inputStream.reset();
                 //data.seekTo()
-                Log.d(TAG,"SKIP_POS  percent:" + percent + " offset:" + seekPosition + " source_len:" +  data.getSourceLength());
+                Log.d(TAG,"SKIP_POS  percent:" + percent + " offset:" + seekPosition + " source_len:" +  data.getSourceLength() + 
+                		" sec:"+ writtenMiliSeconds + " Min:"+ (writtenMiliSeconds / 60000) + ":"+((writtenMiliSeconds/1000)%60) );
                 data.skip(seekPosition);
                 writtenMiliSeconds = percent * streamSecondsLength * 10; // that is /100 * 1000 - save in millis for now.
-                Log.e("XX", "Pos sec:" + writtenMiliSeconds + " Min:"+ (writtenMiliSeconds / 60000) + ":"+((writtenMiliSeconds/1000)%60) );
             } catch (OutOfMemoryError e) {
             	e.printStackTrace();
             }

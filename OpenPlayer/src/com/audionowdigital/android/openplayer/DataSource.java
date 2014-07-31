@@ -106,7 +106,9 @@ public class DataSource  {
 		Log.d(TAG, "release called.");
 		try {
 			inputStream.close();
-		} catch (Exception e) { e.printStackTrace(); }
+		} catch (Exception e) {
+            Log.d(TAG, "source already released");
+        }
 		inputStream = null;
 		dataSource = DATA_SRC_INVALID;
 	}
