@@ -29,7 +29,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     /**
      * The audio track to write the raw pcm bytes to
      */
-    protected static AudioTrack audioTrack;
+    protected AudioTrack audioTrack;
 
     /**
      * The input stream to decode from
@@ -133,7 +133,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     	if (!data.isSourceValid()) {
     		return 0;
     	}
-    	//Log.d(TAG, "onReadOpusData call: " + amountToWrite);
+    	Log.d(TAG, "onReadOpusData call: " + amountToWrite);
         //If the player is not playing or reading the header, return 0 to end the native decode method
         if (playerState.get() == PlayerStates.STOPPED) {
             return 0;
@@ -193,6 +193,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         //If we received data and are playing, write to the audio track
         if (pcmData != null && amountToRead > 0 && audioTrack != null && playerState.isPlaying()) {
             audioTrack.write(pcmData, 0, amountToRead);
+            Log.d("DataSource", "audio track write");
             // count data
             writtenPCMData += amountToRead;
             writtenMiliSeconds += convertBytesToMs(amountToRead); 
@@ -210,6 +211,8 @@ public class ImplDecodeFeed implements DecodeFeed {
             
             // at this point we know all stream parameters, including the sampleRate, use it to compute current time.
             //Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() +  " time:" + writtenMiliSeconds + " bytes:" + writtenPCMData);
+        } else {
+            Log.e("DataSource", "audio track error");
         }
     }
 
@@ -239,6 +242,7 @@ public class ImplDecodeFeed implements DecodeFeed {
             if (data.isSourceValid())
             	data.release();
 
+            Log.d("Player_Status", "decoding complete");
             stopAudioTrack();
         }
         //Set our state to stopped
@@ -275,6 +279,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         
         // we are already playing but track changed
         if (playerState.get() != PlayerStates.STOPPED) {
+            Log.d("Player_Status", "change track");
             stopAudioTrack();
         }
         

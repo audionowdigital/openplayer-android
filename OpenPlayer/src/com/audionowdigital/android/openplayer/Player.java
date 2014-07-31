@@ -67,6 +67,8 @@ public class Player implements Runnable {
 
     public void stopAudioTrack(){
         decodeFeed.stopAudioTrack();
+        Log.d("Player_Status", "stop audio track");
+
     }
 
     /**
