@@ -3,268 +3,33 @@ the jni callbacks. Decodes simple and chained OggOpus files from beginning
 to end. */
 
 #include "org_xiph_opus_decoderjni_OpusDecoder.h"
-
-/*Define message codes*/
-#define NOT_OPUS_HEADER -1
-#define CORRUPT_HEADER -2
-#define OPUS_DECODE_ERROR -3
-#define SUCCESS 0
+#include "OpusHeader.h"
+#include "../decodefeed/DecodeFeed.h"
 
 #define OPUS_HEADERS 2
 
-#define BUFFER_LENGTH 4096
 
 #define COMMENT_MAX_LEN 40
 
 int debug = 0;
-
-#define LOG_TAG "jniOpusDecoder"
-#define LOGD(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG,__VA_ARGS__)
-#define LOGV(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG, __VA_ARGS__)
-#define LOGE(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,__VA_ARGS__)
-#define LOGW(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_WARN, LOG_TAG,__VA_ARGS__)
-#define LOGI(LOG_TAG, ...) if (debug) __android_log_print(ANDROID_LOG_INFO, LOG_TAG,__VA_ARGS__)
 
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
   LOGD(LOG_TAG, "onLoad called.");
 	return JNI_VERSION_1_6;
 }
 
-//Stops the opus data feed
-void onStopDecodeFeed(JNIEnv *env, jobject* opusDataFeed, jmethodID* stopMethodId) {
-    (*env)->CallVoidMethod(env, (*opusDataFeed), (*stopMethodId));
-}
 
-//Reads raw opus data from the jni callback
-int onReadOpusDataFromOpusDataFeed(JNIEnv *env, jobject* opusDataFeed, jmethodID* readOpusDataMethodId, char* buffer, jbyteArray* jByteArrayReadBuffer) {
-    //Call the read method
-    int readByteCount = (*env)->CallIntMethod(env, (*opusDataFeed), (*readOpusDataMethodId), (*jByteArrayReadBuffer), BUFFER_LENGTH);
-
-    //Don't bother copying, just return 0
-    if(readByteCount == 0) return 0;
-
-    //Gets the bytes from the java array and copies them to the opus buffer
-    jbyte* readBytes = (*env)->GetByteArrayElements(env, (*jByteArrayReadBuffer), NULL);
-    memcpy(buffer, readBytes, readByteCount);
-    
-    //Clean up memory and return how much data was read
-    (*env)->ReleaseByteArrayElements(env, (*jByteArrayReadBuffer), readBytes, JNI_ABORT);
-
-    //Return the amount actually read
-    return readByteCount;
-}
-
-//Writes the pcm data to the Java layer
-void onWritePCMDataFromOpusDataFeed(JNIEnv *env, jobject* opusDataFeed, jmethodID* writePCMDataMethodId, ogg_int16_t* buffer, int bytes, jshortArray* jShortArrayWriteBuffer) {
-
-    //No data to read, just exit
-    if(bytes == 0) return;
-
-    //Copy the contents of what we're writing to the java short array
-    (*env)->SetShortArrayRegion(env, (*jShortArrayWriteBuffer), 0, bytes, (jshort *)buffer);
-    
-    //Call the write pcm data method
-    (*env)->CallVoidMethod(env, (*opusDataFeed), (*writePCMDataMethodId), (*jShortArrayWriteBuffer), bytes);
-}
-
-//Starts the decode feed with the necessary information about sample rates, channels, etc about the stream
-void onStart(JNIEnv *env, jobject *opusDataFeed, jmethodID* startMethodId, long sampleRate, long channels, char* vendor,
-		char *title, char *artist, char *album, char *date, char *track) {
-    LOGI(LOG_TAG, "Notifying decode feed");
-
-    //Creates a java string for the vendor
-    jstring vendorString = (*env)->NewStringUTF(env, vendor);
-    jstring titleString = (*env)->NewStringUTF(env, title);
-    jstring artistString = (*env)->NewStringUTF(env, artist);
-    jstring albumString = (*env)->NewStringUTF(env, album);
-    jstring dateString = (*env)->NewStringUTF(env, date);
-    jstring trackString = (*env)->NewStringUTF(env, track);
-
-    //Get decode stream info class and constructor
-    jclass decodeStreamInfoClass = (*env)->FindClass(env, "org/xiph/opus/decoderjni/DecodeStreamInfo");
-
-    jmethodID constructor = (*env)->GetMethodID(env, decodeStreamInfoClass, "<init>",
-    		"(JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
-
-    //Create the decode stream info object
-    jobject decodeStreamInfo = (*env)->NewObject(env, decodeStreamInfoClass, constructor, (jlong)sampleRate, (jlong)channels, vendorString,
-    		titleString, artistString,albumString,dateString,trackString);
-
-    //Call decode feed onStart
-    (*env)->CallVoidMethod(env, (*opusDataFeed), (*startMethodId), decodeStreamInfo);
-
-    //Cleanup decode feed object
-    (*env)->DeleteLocalRef(env, decodeStreamInfo);
-
-    //Cleanup java vendor string
-    (*env)->DeleteLocalRef(env, vendorString);
-    (*env)->DeleteLocalRef(env, titleString);
-    (*env)->DeleteLocalRef(env, artistString);
-    (*env)->DeleteLocalRef(env, albumString);
-    (*env)->DeleteLocalRef(env, dateString);
-    (*env)->DeleteLocalRef(env, trackString);
-}
-
-//Starts reading the header information
-void onStartReadingHeader(JNIEnv *env, jobject *opusDataFeed, jmethodID* startReadingHeaderMethodId) {
-    LOGI(LOG_TAG, "Notifying decode feed to onStart reading the header");
-
-    //Call header onStart reading method
-    (*env)->CallVoidMethod(env, (*opusDataFeed), (*startReadingHeaderMethodId));
-}
-
-
-//onStartReadingHeader(env, &opusDataFeed, &startReadingHeaderMethodId);
+//onStartReadingHeader(env, &javaDecodeFeedObj, &startReadingHeaderMethodId);
 JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_initJni(JNIEnv *env, jclass cls, int debug0) {
 	debug = debug0;
-	LOGI(LOG_TAG, "initJni called, initing methods");
+	LOGI(LOG_TAG, "initJni called, initing methods (opus)");
 }
 
 
-/*Process an Opus header and setup the opus decoder based on it.
-  It takes several pointers for header values which are needed
-  elsewhere in the code.*/
-static OpusDecoder *process_header(ogg_packet *op, int *rate, int *channels, int *preskip, int quiet) {
-	int err;
-	OpusDecoder *st;
-	OpusHeader header;
-
-	if (opus_header_parse(op->packet, op->bytes, &header) == 0) {
-		LOGE(LOG_TAG, "Cannot parse header");
-		return NULL;
-	} else
-		LOGD(LOG_TAG, "Header parsed: ch:%d samplerate:%d", header.channels, header.input_sample_rate);
-	*channels = header.channels;
-
-	// validate sample rate: If the rate is unspecified we decode to 48000
-	if (!*rate) *rate = header.input_sample_rate;
-	if (*rate == 0) *rate = 48000;
-	if (*rate < 8000 || *rate > 192000) {
-		LOGE(LOG_TAG, "Invalid input_rate %d, defaulting to 48000 instead.",*rate);
-		*rate = 48000;
-	}
-
-	*preskip = header.preskip;
-	st = opus_decoder_create(*rate, header.channels, &err); // was 48000
-	if (err != OPUS_OK)	{
-		LOGE(LOG_TAG, "Cannot create decoder: %s", opus_strerror(err));
-		return NULL;
-	}
-	if (!st) {
-		LOGE(LOG_TAG, "Decoder initialization failed: %s", opus_strerror(err));
-		return NULL;
-	}
-
-	if (header.gain != 0) {
-		/*Gain API added in a newer libopus version, if we don't have it
-		 we apply the gain ourselves. We also add in a user provided
-		 manual gain at the same time.*/
-		int gainadj = (int) header.gain;
-		err = opus_decoder_ctl(st, OPUS_SET_GAIN(gainadj));
-		if (err != OPUS_OK) {
-		  LOGE(LOG_TAG, "Error setting gain: %s", opus_strerror(err));
-		  return NULL;
-		}
-	}
-
-	if (!quiet) {
-		LOGE(LOG_TAG, "Decoding to %d Hz (%d channels)", *rate, *channels);
-		if (header.version != 1) LOGE(LOG_TAG, "Header v%d",header.version);
-
-		if (header.gain != 0) {
-			LOGE(LOG_TAG, "Playback gain: %f dB\n", header.gain / 256.);
-		}
-	}
-
-	LOGE(LOG_TAG, "Header returning:: %d" , st);
-
-	return st;
-}
-
-// read an int from multiple bytes
-#define readint(buf, offset) (((buf[offset + 3] << 24) & 0xff000000) | ((buf[offset + 2] << 16) & 0xff0000) | ((buf[offset + 1] << 8) & 0xff00) | (buf[offset] & 0xff))
-
-#define max(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a > _b ? _a : _b; })
-#define min(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a < _b ? _a : _b; })
 
 
-// OpusTags | Len 4B | Vendor String (len) | Len 4B Tags | Len Tag 1 4B | Tag 1 String (Len) | Len Tag 2 4B ..
-int process_comments(char *c, int length, char *vendor, char *title,  char *artist, char *album, char *date, char *track, int maxlen) {
-	int err = SUCCESS;
-	LOGE(LOG_TAG,"process_comments called for %d bytes.", length);
-
-	if (length < (8 + 4 + 4)) {
-		err = NOT_OPUS_HEADER;
-		return err;;
-	}
-	if (strncmp(c, "OpusTags", 8) != 0) {
-		err = NOT_OPUS_HEADER;
-		return err;
-	}
-	c += 8; // skip header
-	int len = readint(c, 0);
-	c += 4;
-	if (len < 0 || len > (length - 16)) {
-		LOGE(LOG_TAG, "invalid/corrupt comments");
-		err = NOT_OPUS_HEADER;
-		return err;
-	}
-	strncpy(vendor, c, min(len, maxlen));
-
-	c += len;
-	int fields = readint(c, 0); // the -16 check above makes sure we can read this.
-	c += 4;
-	length -= 16 + len;
-	if (fields < 0 || fields > (length >> 2)) {
-		LOGE(LOG_TAG, "invalid/corrupt comments");
-		err = NOT_OPUS_HEADER;
-		return err;
-	}
-	LOGD(LOG_TAG, "Go and read %d fields:", fields);
-	int i = 0;
-	for (i = 0; i < fields; i++) {
-	    if (length < 4){
-	    	LOGE(LOG_TAG, "invalid/corrupt comments");
-			err = NOT_OPUS_HEADER;
-			return err;
-	    }
-	    len = readint(c, 0);
-	    c += 4;
-	    length -= 4;
-	    if (len < 0 || len > length)
-	    {
-	    	LOGE(LOG_TAG, "invalid/corrupt comments");
-			err = NOT_OPUS_HEADER;
-			return err;
-	    }
-	    char *tmp = (char *)malloc(len + 1); // we also need the ending 0
-	    strncpy(tmp, c, len);
-	    tmp[len] = 0;
-	    LOGD(LOG_TAG,"Header comment:%d len:%d [%s]", i, len, tmp);
-	    free(tmp);
-
-	    // keys we are looking for in the comments
-		char keys[5][10] = { "title=", "artist=", "album=", "date=", "track=" };
-		char *values[5] = { title, artist, album, date, track }; // put the values in these pointers
-	    int j = 0;
-	    for (j = 0; j < 5; j++) { // iterate all keys
-	    	int keylen = strlen(keys[j]);
-	    	if (!strncasecmp(c, keys[j], keylen )) strncpy(values[j], c + keylen, min(len - keylen , maxlen));
-	    }
-	    /*if (!strncasecmp(c, "title=", 6)) strncpy(title, c + 6, min(len - 6 , maxlen));
-	    if (!strncasecmp(c, "artist=", 7)) strncpy(artist, c + 7, min(len - 7 , maxlen));
-	    if (!strncasecmp(c, "album=", 6)) strncpy(album, c + 6, min(len - 6 , maxlen));
-	    if (!strncasecmp(c, "date=", 5)) strncpy(date, c + 5, min(len - 5 , maxlen));
-	    if (!strncasecmp(c, "track=", 6)) strncpy(track, c + 6, min(len - 6 , maxlen));*/
-
-	    c += len;
-	    length -= len;
-	  }
-	return err;
-}
-
-JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls, jobject opusDataFeed) {
-	LOGI(LOG_TAG, "startDecoding called, initing buffers");
+JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteLoop(JNIEnv *env, jclass cls, jobject javaDecodeFeedObj) {
+	LOGI(LOG_TAG, "startDecoding called, initing buffers (opus)");
 
 	//Create a new java byte array to pass to the opus data feed method
 	jbyteArray jByteArrayReadBuffer = (*env)->NewByteArray(env, BUFFER_LENGTH);
@@ -272,16 +37,16 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 	//Create our write buffer
 	jshortArray jShortArrayWriteBuffer = (*env)->NewShortArray(env, BUFFER_LENGTH*2);
 
-        //-- get Java layer method pointer --//
-	jclass opusDataFeedClass = (*env)->FindClass(env, "org/xiph/opus/decoderjni/DecodeFeed");
+    //-- get Java layer method pointer --//
+	jclass javaDecodeFeedObjClass = (*env)->FindClass(env, "com/audionowdigital/android/openplayer/DecodeFeed");
 
 
 	//Find our java method id's we'll be calling
-	jmethodID readOpusDataMethodId = (*env)->GetMethodID(env, opusDataFeedClass, "onReadOpusData", "([BI)I");
-	jmethodID writePCMDataMethodId = (*env)->GetMethodID(env, opusDataFeedClass, "onWritePCMData", "([SI)V");
-	jmethodID startMethodId = (*env)->GetMethodID(env, opusDataFeedClass, "onStart", "(Lorg/xiph/opus/decoderjni/DecodeStreamInfo;)V");
-	jmethodID startReadingHeaderMethodId = (*env)->GetMethodID(env, opusDataFeedClass, "onStartReadingHeader", "()V");
-	jmethodID stopMethodId = (*env)->GetMethodID(env, opusDataFeedClass, "onStop", "()V");
+	jmethodID readOpusDataMethodId = (*env)->GetMethodID(env, javaDecodeFeedObjClass, "onReadEncodedData", "([BI)I");
+	jmethodID writePCMDataMethodId = (*env)->GetMethodID(env, javaDecodeFeedObjClass, "onWritePCMData", "([SI)V");
+	jmethodID startMethodId = (*env)->GetMethodID(env, javaDecodeFeedObjClass, "onStart", "(JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+	jmethodID startReadingHeaderMethodId = (*env)->GetMethodID(env, javaDecodeFeedObjClass, "onStartReadingHeader", "()V");
+	jmethodID stopMethodId = (*env)->GetMethodID(env, javaDecodeFeedObjClass, "onStop", "()V");
 	//--
     ogg_int16_t convbuffer[BUFFER_LENGTH]; /* take 8k out of the data segment, not the stack */
     int convsize=BUFFER_LENGTH;
@@ -324,7 +89,7 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 	char track[COMMENT_MAX_LEN] = {0};
 
 	//Notify the decode feed we are starting to initialize
-    onStartReadingHeader(env, &opusDataFeed, &startReadingHeaderMethodId);
+    onStartReadingHeader(env, &javaDecodeFeedObj, &startReadingHeaderMethodId);
 
     //1
     ogg_sync_init(&oy); /* Now we can read pages */
@@ -343,7 +108,7 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 
         // READ DATA : submit a 4k block to Ogg layer
         buffer = ogg_sync_buffer(&oy,BUFFER_LENGTH);
-        bytes = onReadOpusDataFromOpusDataFeed(env, &opusDataFeed, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
+        bytes = onReadEncodedData(env, &javaDecodeFeedObj, &readOpusDataMethodId, buffer, &jByteArrayReadBuffer);
         ogg_sync_wrote(&oy,bytes);
 
         // Check available data
@@ -393,11 +158,11 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 					/*If the decoder returned less than zero, we have an error.*/
 					if (ret < 0) {
 						LOGE(LOG_TAG,"Decoding error: %s", opus_strerror(ret));
-						err = OPUS_DECODE_ERROR;
+						err = DECODE_ERROR;
 						break;
 					}
 					frame_size = (ret < convsize?ret : convsize);
-					onWritePCMDataFromOpusDataFeed(env, &opusDataFeed, &writePCMDataMethodId, convbuffer, channels*frame_size, &jShortArrayWriteBuffer);
+					onWritePCMData(env, &javaDecodeFeedObj, &writePCMDataMethodId, convbuffer, channels*frame_size, &jShortArrayWriteBuffer);
 
 
 				} // decoding done
@@ -407,28 +172,26 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 					if (header == OPUS_HEADERS) { // first header
 						//if (op.b_o_s && op.bytes >= 8 && !memcmp(op.packet, "OpusHead", 8)) {
 						if (op.bytes < 8 || memcmp(op.packet, "OpusHead", 8) != 0) {
-							err = NOT_OPUS_HEADER;
+							err = INVALID_HEADER;
 							break;
 						}
 						// prepare opus structures
 						st = process_header(&op, &rate, &channels, &preskip, 0);
 					}
-					//LOGE(LOG_TAG, "header:%d(1)", header);
 					if (header == OPUS_HEADERS -1) { // second and last header, read comments
 						// err = we ignore comment errors
-						err = process_comments((char *)op.packet, op.bytes, vendor, title, artist, album, date, track, COMMENT_MAX_LEN);
-						if (err != SUCCESS) break;
+						process_comments((char *)op.packet, op.bytes, vendor, title, artist, album, date, track, COMMENT_MAX_LEN);
 
 					}
 					// we need to do this 2 times, for all 2 opus headers! add data to header structure
 
 					// signal next header
 					header--;
-					//LOGE(LOG_TAG, "header:%d(2)", header);
+
 					// we got all opus headers
 					if (header == 0) {
 						//  header ready , call player to pass stream details and init AudioTrack
-						onStart(env, &opusDataFeed, &startMethodId, rate, channels, vendor,
+						onStart(env, &javaDecodeFeedObj, &startMethodId, rate, channels, vendor,
 								title, artist, album, date, track);
 					}
 				} // header decoding
@@ -457,18 +220,15 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 
     // ogg_page and ogg_packet structs always point to storage in libopus.  They're never freed or manipulated directly
 
-    //LOGW(LOG_TAG, "Preparing to exit (1).");
 
     // OK, clean up the framer
     ogg_sync_clear(&oy);
-    //LOGW(LOG_TAG, "Preparing to exit (2).");
-    onStopDecodeFeed(env, &opusDataFeed, &stopMethodId);
-    //LOGW(LOG_TAG, "Preparing to exit (3).");
+
+    onStop(env, &javaDecodeFeedObj, &stopMethodId);
 
     //Clean up our buffers
     (*env)->DeleteLocalRef(env, jByteArrayReadBuffer);
     (*env)->DeleteLocalRef(env, jShortArrayWriteBuffer);
-    LOGW(LOG_TAG, "Preparing to exit done, res:%d.", err);
 
     return err;
 }
