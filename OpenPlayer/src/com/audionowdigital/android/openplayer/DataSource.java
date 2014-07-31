@@ -28,7 +28,7 @@ public class DataSource  {
 	private String dataPath = null;
 	private int dataSource = DATA_SRC_INVALID; 
 	
-	private long length = -1;
+	private long length = -1, readoffset = -1;
 	
 	private InputStream getRemote(String url, long offset) {
 		try {
@@ -42,6 +42,8 @@ public class DataSource  {
 			
 			if (offset == 0)
 				length = cn.getContentLength();
+			
+			readoffset = offset;
 			
 			return cn.getInputStream();
 		} catch (MalformedURLException e ) { e.printStackTrace();
@@ -104,7 +106,7 @@ public class DataSource  {
 		Log.d(TAG, "release called.");
 		try {
 			inputStream.close();
-		} catch (IOException e) { e.printStackTrace(); }
+		} catch (Exception e) { e.printStackTrace(); }
 		inputStream = null;
 		dataSource = DATA_SRC_INVALID;
 	}
@@ -117,15 +119,26 @@ public class DataSource  {
 		return length;
 	}
 	
+	/**
+	 * 
+	 * @return the current read position in bytes, must be smaller then source lengths @getSourceLength()
+	 */
+	public long getReadOffset() {
+		return readoffset;
+	}
+	
 	public boolean isSourceValid() {
 		return dataSource != DATA_SRC_INVALID;
 	}
 
-	
+
 	public synchronized int read(byte buffer[], int byteOffset, int byteCount) {
 		try {
-			if (dataSource != DATA_SRC_INVALID)
-				return inputStream.read(buffer, byteOffset, byteCount);
+			if (dataSource != DATA_SRC_INVALID) {
+				int bytes = inputStream.read(buffer, byteOffset, byteCount);
+				if (bytes > 0) readoffset += bytes;
+				return bytes;
+			}
 		} catch (IOException e) { e.printStackTrace(); }
 	
 		return DATA_SRC_INVALID;	
@@ -138,7 +151,7 @@ public class DataSource  {
 		if (dataSource == DATA_SRC_LOCAL) {
 			try {
 				inputStream.reset(); // will reset to mark: TODO: test if memory is ok on local big files
-				Long skip = inputStream.skip(offset);
+				long skip = inputStream.skip(offset);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

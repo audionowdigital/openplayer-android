@@ -42,12 +42,15 @@ public class ImplDecodeFeed implements DecodeFeed {
      * The amount of written pcm data to the audio track
      */
     protected long writtenPCMData = 0;
+    
+    
     /**
      * Track seconds or for how many seconds have we been playing
      */
     protected long writtenMiliSeconds = 0;
+    
 
-   static int count;
+  static int count;
 
     /**
      * Stream info as reported in the header 
@@ -141,6 +144,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         //Otherwise read from the file
         try {
             int read = data.read(buffer, 0, amountToWrite);
+            
             return read == -1 ? 0 : read;
         } catch (Exception e) {
             //There was a problem reading from the file
@@ -192,6 +196,15 @@ public class ImplDecodeFeed implements DecodeFeed {
             // count data
             writtenPCMData += amountToRead;
             writtenMiliSeconds += convertBytesToMs(amountToRead); 
+            
+            /*
+             * The idea here is we are loosing some seconds when the packages can't be decoded (on seek, when jumping in the middle of a package), so the overall time count is behind the real position
+             * So when we know the time size of a stream, we can simply keep count of the bytes read form the source, and compute the time position proportionally
+             */
+            if (streamSecondsLength > 0 && data.getSourceLength() > 0) {            	
+            	writtenMiliSeconds = (data.getReadOffset() * streamSecondsLength * 1000) / data.getSourceLength();
+            }
+            
             // send a notification of progress
             events.sendEvent(PlayerEvents.PLAY_UPDATE, (int) (writtenMiliSeconds / 1000));
             
