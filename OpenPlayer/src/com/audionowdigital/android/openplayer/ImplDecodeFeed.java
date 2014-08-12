@@ -133,7 +133,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     	if (!data.isSourceValid()) {
     		return 0;
     	}
-    	Log.d(TAG, "onReadOpusData call: " + amountToWrite);
+    	//Log.d(TAG, "onReadOpusData call: " + amountToWrite);
         //If the player is not playing or reading the header, return 0 to end the native decode method
         if (playerState.get() == PlayerStates.STOPPED) {
             return 0;
@@ -193,7 +193,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         //If we received data and are playing, write to the audio track
         if (pcmData != null && amountToRead > 0 && audioTrack != null && playerState.isPlaying()) {
             audioTrack.write(pcmData, 0, amountToRead);
-            Log.d("DataSource", "audio track write");
+            //Log.d("DataSource", "audio track write");
             // count data
             writtenPCMData += amountToRead;
             writtenMiliSeconds += convertBytesToMs(amountToRead); 
