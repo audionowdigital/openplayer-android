@@ -73,7 +73,6 @@ public class Player implements Runnable {
 
     /**
      * Set an input stream as data source and starts reading from it
-     * @param streamToDecode the stream to read from 
      */
     public void setDataSource(String path, long streamSecondsLength) {
     	if (playerState.get() != PlayerStates.STOPPED) {
@@ -85,6 +84,13 @@ public class Player implements Runnable {
     	decodeFeed.setData(path, streamSecondsLength);
     	// start the thread, will go directly to "run" method
     	new Thread(this).start();
+    }
+
+    /**
+     * Return the data source from the decode feed
+     */
+    public DataSource getDataSource(){
+        return decodeFeed.getDataSource();
     }
 
     public long getDuration() {
@@ -152,7 +158,12 @@ public class Player implements Runnable {
         	Log.e(TAG, "call vorbis readwrite loop");
         	result = VorbisDecoder.readDecodeWriteLoop(decodeFeed);
         }
-        
+
+        if (decodeFeed.getDataSource()!=null && !decodeFeed.getDataSource().isSourceValid()) {
+            // Invalid data source
+            events.sendEvent(PlayerEvents.PLAYING_FAILED);
+            return;
+        }
         Log.e(TAG, "Result: " + result);
         switch (result) {
             case DecodeFeed.SUCCESS:

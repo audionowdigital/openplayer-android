@@ -365,4 +365,11 @@ public class ImplDecodeFeed implements DecodeFeed {
     public int convertSamplesToMs( int samples) {
         return convertSamplesToMs(samples, streamInfo.getSampleRate(), streamInfo.getChannels());
     }
+
+    /**
+     * Return DataSource of the current feed
+     */
+    public DataSource getDataSource() {
+        return data;
+    }
 }
