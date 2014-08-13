@@ -154,6 +154,7 @@ public class DataSource  {
 			try {
 				inputStream.reset(); // will reset to mark: TODO: test if memory is ok on local big files
 				long skip = inputStream.skip(offset);
+                readoffset = offset;
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

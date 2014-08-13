@@ -5,11 +5,6 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.util.Log;
 
-
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-
 /**
  * Custom class to easily buffer and decode from a stream and write to an {@link AudioTrack}
  */
@@ -50,7 +45,6 @@ public class ImplDecodeFeed implements DecodeFeed {
     protected long writtenMiliSeconds = 0;
     
 
-  static int count;
 
     /**
      * Stream info as reported in the header 
@@ -74,9 +68,11 @@ public class ImplDecodeFeed implements DecodeFeed {
     public int getCurrentPosition() {
     	return (int) (writtenMiliSeconds / 1000);
     }
+
     /**
-     * Pass a stream as data source
-     * @param streamToDecode
+     * init the player data source using a string containing either a file absolute location or an url
+     * @param path the file path or the url
+     * @param streamSecondsLength the total size in seconds of this stream or -1 if not available (live streams)
      */
     public void setData(String path, long streamSecondsLength) {
     	if (path == null) {
@@ -123,7 +119,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     }
     
     /**
-     * Triggered from the native {@link VorbisDecoder} that is requesting to read the next bit of opus data
+     * Triggered from the native that is requesting to read the next bit of opus data
      *
      * @param buffer        the buffer to write to
      * @param amountToWrite the amount of opus data to write (from inputstream to our buffer)
@@ -169,10 +165,12 @@ public class ImplDecodeFeed implements DecodeFeed {
                 audioTrack.flush();
                 //inputStream.reset();
                 //data.seekTo()
-                Log.d(TAG,"SKIP_POS  percent:" + percent + " offset:" + seekPosition + " source_len:" +  data.getSourceLength() + 
-                		" sec:"+ writtenMiliSeconds + " Min:"+ (writtenMiliSeconds / 60000) + ":"+((writtenMiliSeconds/1000)%60) );
                 data.skip(seekPosition);
                 writtenMiliSeconds = percent * streamSecondsLength * 10; // that is /100 * 1000 - save in millis for now.
+
+                Log.d(TAG,"SKIP_POS  percent:" + percent + " new_offset:" + seekPosition + " orig_source_len:" +  data.getSourceLength()+
+                        "new_sec:"+ writtenMiliSeconds + " Min:"+ (writtenMiliSeconds / 60000) + ":"+((writtenMiliSeconds/1000)%60) );
+
             } catch (OutOfMemoryError e) {
             	e.printStackTrace();
             }
@@ -181,7 +179,7 @@ public class ImplDecodeFeed implements DecodeFeed {
 
 
     /**
-     * Triggered from the native {@link VorbisDecoder} that is requesting to write the next bit of raw PCM data
+     * Triggered from the native that is requesting to write the next bit of raw PCM data
      *
      * @param pcmData      the raw pcm data
      * @param amountToRead the amount available to read in the buffer and dump it to our PCM buffers
@@ -196,8 +194,9 @@ public class ImplDecodeFeed implements DecodeFeed {
             //Log.d("DataSource", "audio track write");
             // count data
             writtenPCMData += amountToRead;
-            writtenMiliSeconds += convertBytesToMs(amountToRead); 
-            
+            writtenMiliSeconds += convertBytesToMs(amountToRead);
+
+
             /*
              * The idea here is we are loosing some seconds when the packages can't be decoded (on seek, when jumping in the middle of a package), so the overall time count is behind the real position
              * So when we know the time size of a stream, we can simply keep count of the bytes read form the source, and compute the time position proportionally
@@ -205,7 +204,7 @@ public class ImplDecodeFeed implements DecodeFeed {
             if (streamSecondsLength > 0 && data.getSourceLength() > 0) {            	
             	writtenMiliSeconds = (data.getReadOffset() * streamSecondsLength * 1000) / data.getSourceLength();
             }
-            
+
             // send a notification of progress
             events.sendEvent(PlayerEvents.PLAY_UPDATE, (int) (writtenMiliSeconds / 1000));
             
@@ -251,8 +250,14 @@ public class ImplDecodeFeed implements DecodeFeed {
 
     /**
      * Called when reading header is complete and we are ready to play the stream. decoding has started
-     *
-     * @param decodeStreamInfo the stream information of what's about to be played
+     * @param sampleRate
+     * @param channels
+     * @param vendor
+     * @param title
+     * @param artist
+     * @param album
+     * @param date
+     * @param track
      */
     @Override
     public void onStart(long sampleRate, long channels, String vendor, String title, String artist, String album, String date, String track)    
@@ -288,9 +293,6 @@ public class ImplDecodeFeed implements DecodeFeed {
         int minSize = AudioTrack.getMinBufferSize((int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT);
         audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, (int) decodeStreamInfo.getSampleRate(), channelConfiguration, 
         		AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
-     count ++;
-
-     Log.e(TAG, "New AudioTrack inc counter: <<<< " + count);
 
         audioTrack.play();
         
