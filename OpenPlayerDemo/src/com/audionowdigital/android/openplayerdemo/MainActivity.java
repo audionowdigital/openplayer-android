@@ -69,7 +69,7 @@ public class MainActivity extends Activity {
         
         scrollView.addView(panelV);
         logArea = new TextView(this);
-        logArea.setText("Welcome to OPENPlayer v 1.0.107  Press Init->Play");
+        logArea.setText("Welcome to OPENPlayer v 1.0.108  Press Init->Play");
         panelV.addView(logArea);
         
         Button b = new Button(this);
@@ -91,7 +91,8 @@ public class MainActivity extends Activity {
         	et.setText("http://icecast1.pulsradio.com:80/mxHD.ogg");
         else {
         	//et.setText("http://ai-radio.org:8000/radio.opus");
-        	et.setText("http://ice01.va.audionow.com/audiocast/caraibes/ranmasse.ogg");
+        	//et.setText("http://ice01.va.audionow.com/audiocast/caraibes/ranmasse.ogg");
+        	et.setText("http://www.markosoft.ro/opus/02_Archangel.opus");
         }
         
         panelV.addView(et);
@@ -103,7 +104,8 @@ public class MainActivity extends Activity {
 				logArea.setText("");
 				Log.d(TAG, "Set source:" + et.getEditableText().toString());
 				//InputStream urlStrem = getStreamURL(et.getEditableText().toString());
-				player.setDataSource(et.getEditableText().toString(), 17169);
+				//player.setDataSource(et.getEditableText().toString(), 17169);
+				player.setDataSource(et.getEditableText().toString(), 154);
 		    }
 		});
         panelV.addView(b);
@@ -182,7 +184,7 @@ public class MainActivity extends Activity {
                     	logArea.setText("READY to play - press play :)");
                         break;
                     case PlayerEvents.PLAY_UPDATE:
-                    	logArea.setText("Playing:" + (msg.arg1 ) + "s");
+                    	logArea.setText("Playing:" + (msg.arg1 / 60) + ":" + (msg.arg1 % 60) + " (" + (msg.arg1 ) + "s)");
                     	seekBar.setProgress( (int) (msg.arg1 * 100/ player.getDuration()) );
                         break;
                     case PlayerEvents.TRACK_INFO:

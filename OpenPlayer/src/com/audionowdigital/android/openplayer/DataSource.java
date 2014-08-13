@@ -1,5 +1,7 @@
 package com.audionowdigital.android.openplayer;
 
+import android.util.Log;
+
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -9,9 +11,6 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.ByteBuffer;
-
-import android.util.Log;
 
 public class DataSource  {
 
@@ -139,7 +138,7 @@ public class DataSource  {
 			if (dataSource != DATA_SRC_INVALID) {
 				int bytes = inputStream.read(buffer, byteOffset, byteCount);
 				if (bytes > 0) readoffset += bytes;
-                Log.d(TAG, "readoffset:" + readoffset);
+                //Log.d(TAG, "readoffset:" + readoffset);
 				return bytes;
 			}
 		} catch (IOException e) { e.printStackTrace(); }
