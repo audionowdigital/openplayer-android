@@ -134,7 +134,7 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
            	// we finally have a valid page
 			if (!inited) {
 				ogg_stream_init(&os, ogg_page_serialno(&og));
-				LOGE(LOG_TAG, "inited stream, serial no: %ld", os.serialno);
+				LOGE(LOG_TAG, "inited stream, serial no: %ld header_fill:%d", os.serialno, os.header_fill);
 				inited = 1;
 				// reinit header flag here
 				header = OPUS_HEADERS;
@@ -161,7 +161,12 @@ JNIEXPORT int JNICALL Java_org_xiph_opus_decoderjni_OpusDecoder_readDecodeWriteL
 						err = DECODE_ERROR;
 						break;
 					}
+
+
+
 					frame_size = (ret < convsize?ret : convsize);
+
+
 					onWritePCMData(env, &javaDecodeFeedObj, &writePCMDataMethodId, convbuffer, channels*frame_size, &jShortArrayWriteBuffer);
 
 

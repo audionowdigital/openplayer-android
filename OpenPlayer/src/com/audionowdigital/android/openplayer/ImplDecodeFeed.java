@@ -264,6 +264,8 @@ public class ImplDecodeFeed implements DecodeFeed {
  {
     	DecodeStreamInfo decodeStreamInfo = new DecodeStreamInfo(sampleRate, channels, vendor, title, artist, album, date, track);
         Log.e(TAG, "onStart state:" + playerState.get());
+        
+        Log.e(TAG, "len tests:" + data.getSourceLength() + " " + sampleRate + " " + channels + " dura:" + ((data.getSourceLength() * 8) / (sampleRate * channels)) );
 
     	if (playerState.get() != PlayerStates.READING_HEADER &&
         		playerState.get() != PlayerStates.PLAYING) {

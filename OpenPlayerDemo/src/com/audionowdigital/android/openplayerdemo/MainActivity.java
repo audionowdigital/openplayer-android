@@ -92,7 +92,8 @@ public class MainActivity extends Activity {
         else {
         	//et.setText("http://ai-radio.org:8000/radio.opus");
         	//et.setText("http://ice01.va.audionow.com/audiocast/caraibes/ranmasse.ogg");
-        	et.setText("http://www.markosoft.ro/opus/02_Archangel.opus");
+        	//et.setText("http://www.markosoft.ro/opus/02_Archangel.opus");
+        	et.setText("http://www.markosoft.ro/opus/04_The_Day_That_Never_Comes.opus");
         }
         
         panelV.addView(et);

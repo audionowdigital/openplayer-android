@@ -1,6 +1,9 @@
 #include "OpusHeader.h"
 
 
+
+
+
 /*Process an Opus header and setup the opus decoder based on it.
   It takes several pointers for header values which are needed
   elsewhere in the code.*/
@@ -26,6 +29,13 @@
 
 	*preskip = header.preskip;
 	st = opus_decoder_create(*rate, header.channels, &err); // was 48000
+
+	//st->bandwidth;
+
+	//LOGE(LOG_TAG, "ST: bandwidth:%d framesize:%d",st->bandwidth,st->frame_size);
+
+
+
 	if (err != OPUS_OK)	{
 		LOGE(LOG_TAG, "Cannot create decoder: %s", opus_strerror(err));
 		return NULL;
