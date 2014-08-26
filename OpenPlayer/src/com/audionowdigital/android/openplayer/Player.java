@@ -5,6 +5,8 @@ import android.os.Handler;
 import android.os.Process;
 import android.util.Log;
 
+import net.pocketmagic.android.openmxplayer.MXDecoder;
+
 import org.xiph.opus.decoderjni.OpusDecoder;
 import org.xiph.vorbis.decoderjni.VorbisDecoder;
 
@@ -18,6 +20,7 @@ public class Player implements Runnable {
 	public enum DecoderType {
 		OPUS,
 		VORBIS,
+		MX,
 		UNKNOWN
 	};
 	
@@ -58,11 +61,15 @@ public class Player implements Runnable {
     	/* switch (type) {
     	 case DecoderType.OPUS: 
     	 }*/
-    	 Log.e(TAG, "preparing ot init");
-    	 if (type == DecoderType.OPUS)
-    		 OpusDecoder.initJni(1);
-    	 else 
-    		 VorbisDecoder.initJni(1);
+    	 Log.e(TAG, "preparing to init:"+type);
+    	 switch (type) {
+    		 case OPUS: OpusDecoder.initJni(1); break;
+    		 case VORBIS: VorbisDecoder.initJni(1); break;
+    		 case MX: MXDecoder.init(1); break;
+		default:
+			break;
+    	 }
+    	  
     }
 
     public void stopAudioTrack(){
@@ -149,14 +156,20 @@ public class Player implements Runnable {
         
         android.os.Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
         
-        int result;
-        if (type == DecoderType.OPUS) {
-        	Log.e(TAG, "call opus readwrite loop");
-        	result = OpusDecoder.readDecodeWriteLoop(decodeFeed);
-        }
-        else {
-        	Log.e(TAG, "call vorbis readwrite loop");
-        	result = VorbisDecoder.readDecodeWriteLoop(decodeFeed);
+        int result = 0;
+        switch (type) {
+        	case OPUS:
+        		Log.e(TAG, "call opus readwrite loop");
+        		result = OpusDecoder.readDecodeWriteLoop(decodeFeed);
+        	break;
+        	case VORBIS:
+        		Log.e(TAG, "call vorbis readwrite loop");
+        		result = VorbisDecoder.readDecodeWriteLoop(decodeFeed);
+        	break;
+        	case MX:
+        		Log.e(TAG, "call mx readwrite loop");
+        		result = MXDecoder.readDecodeWriteLoop(decodeFeed);
+        	break;
         }
 
         if (decodeFeed.getDataSource()!=null && !decodeFeed.getDataSource().isSourceValid()) {

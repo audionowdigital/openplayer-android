@@ -59,5 +59,7 @@ public interface DecodeFeed {
      * @param percent - percentage where to seek
      */
     public void setPosition(int percent);
+    
+    public DataSource getDataSource();
 
 }

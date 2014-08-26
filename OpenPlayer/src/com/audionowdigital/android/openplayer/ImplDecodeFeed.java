@@ -136,7 +136,9 @@ public class ImplDecodeFeed implements DecodeFeed {
         }
         
         waitPlay();
-
+        
+        if (buffer == null) return 0;
+        
         //Otherwise read from the file
         try {
             int read = data.read(buffer, 0, amountToWrite);
@@ -144,7 +146,7 @@ public class ImplDecodeFeed implements DecodeFeed {
             return read == -1 ? 0 : read;
         } catch (Exception e) {
             //There was a problem reading from the file
-            Log.e(TAG, "Failed to read opus data from file.  Aborting.", e);
+            Log.e(TAG, "Failed to read encoded data from file.  Aborting.", e);
             return 0;
         }
     }

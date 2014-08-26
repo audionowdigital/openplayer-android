@@ -34,7 +34,11 @@ import android.widget.TextView;
 // This activity demonstrates how to use JNI to encode and decode ogg/vorbis audio
 public class MainActivity extends Activity {
  
-	Player.DecoderType type = DecoderType.OPUS;
+	/*
+	 * DEFINE PLAYER TYPE
+	 */
+	Player.DecoderType type = DecoderType.MX;
+	
 	private static final String TAG = "MainActivity ";
 	/*
 	http://icecast1.pulsradio.com:80/mxHD.ogg
@@ -69,7 +73,7 @@ public class MainActivity extends Activity {
         
         scrollView.addView(panelV);
         logArea = new TextView(this);
-        logArea.setText("Welcome to OPENPlayer v 1.0.108  Press Init->Play");
+        logArea.setText("Welcome to OPENPlayer v 1.0.109  Press Init->Play");
         panelV.addView(logArea);
         
         Button b = new Button(this);
@@ -77,22 +81,22 @@ public class MainActivity extends Activity {
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
-				player.setDataSource(
-						type == Player.DecoderType.VORBIS?"/sdcard/countdown.ogg":"/sdcard/countdown.opus",
-                        11
-						);//test-katie.ogg");
+				switch (type) {
+					case VORBIS: player.setDataSource("/sdcard/countdown.ogg", 11); break;
+					case OPUS: player.setDataSource("/sdcard/countdown.opus", 11); break;
+					case MX: player.setDataSource("/sdcard/countdown.opus", 11); break;
+				}
+			
 		    }
 		});
         panelV.addView(b);
         
         final EditText et = new EditText(this);
         et.setTextSize(10);
-        if (type == Player.DecoderType.VORBIS)
-        	et.setText("http://icecast1.pulsradio.com:80/mxHD.ogg");
-        else {
-        	//et.setText("http://ai-radio.org:8000/radio.opus");
-        	//et.setText("http://ice01.va.audionow.com/audiocast/caraibes/ranmasse.ogg");
-        	et.setText("http://www.markosoft.ro/opus/02_Archangel.opus");
+        switch (type) {
+        	case VORBIS: et.setText("http://icecast1.pulsradio.com:80/mxHD.ogg"); break;
+        	case OPUS: et.setText("http://www.markosoft.ro/opus/02_Archangel.opus"); break;
+        	case MX: et.setText("http://stream.rfi.fr/rfimonde/all/rfimonde-64k.mp3"); break;
         }
         
         panelV.addView(et);
