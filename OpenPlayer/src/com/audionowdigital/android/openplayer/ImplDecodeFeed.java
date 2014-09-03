@@ -1,5 +1,7 @@
 package com.audionowdigital.android.openplayer;
 
+import com.audionowdigital.android.openplayer.Player.DecoderType;
+
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
@@ -52,6 +54,11 @@ public class ImplDecodeFeed implements DecodeFeed {
     DecodeStreamInfo streamInfo;
     
     /**
+     * Go a different dataSource route for MX decoder
+     */
+	//private DecoderType type;
+    
+    /**
      * Creates a decode feed that reads from a file and writes to an {@link AudioTrack}
      *
      */
@@ -59,6 +66,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     public ImplDecodeFeed(PlayerStates playerState, PlayerEvents events) {
     	this.playerState = playerState;
         this.events = events;
+        //this.type = type;
 	}
 
     /**
@@ -127,11 +135,13 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     @Override public int onReadEncodedData(byte[] buffer, int amountToWrite) {
     	if (!data.isSourceValid()) {
+    		Log.d(TAG, "onReadEncodedData called, but source is invalid");
     		return 0;
     	}
     	//Log.d(TAG, "onReadOpusData call: " + amountToWrite);
         //If the player is not playing or reading the header, return 0 to end the native decode method
         if (playerState.get() == PlayerStates.STOPPED) {
+        	Log.d(TAG, "onReadEncodedData called, but we are stopped");
             return 0;
         }
         
@@ -222,6 +232,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         if (audioTrack != null) {
             Log.d(TAG, "Audiotrack flush");
             audioTrack.flush();
+            Log.d(TAG, "Audiotrack flush done, go for stop.");
             try {
                 audioTrack.stop();
             } catch (Exception ex) {
@@ -240,10 +251,15 @@ public class ImplDecodeFeed implements DecodeFeed {
         	writtenPCMData = 0;
             writtenMiliSeconds = 0;
             //Closes the file input stream
-            if (data.isSourceValid())
+            
+            if (data.isSourceValid()) {
+            	Log.d(TAG, "onStop called with valid data source");
             	data.release();
-
-            Log.d("Player_Status", "decoding complete");
+            } else
+        	Log.e(TAG, "onStop invalid data source");
+            
+            Log.d(TAG, "decoding complete");
+            
             stopAudioTrack();
         }
         //Set our state to stopped
@@ -269,6 +285,7 @@ public class ImplDecodeFeed implements DecodeFeed {
 
     	if (playerState.get() != PlayerStates.READING_HEADER &&
         		playerState.get() != PlayerStates.PLAYING) {
+    		Log.e(TAG, "Must read header first!");
             //throw new IllegalStateException("Must read header first!");
             return;
         }
@@ -286,7 +303,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         
         // we are already playing but track changed
         if (playerState.get() != PlayerStates.STOPPED) {
-            Log.d("Player_Status", "change track");
+            Log.d(TAG, "change track");
             stopAudioTrack();
         }
         
@@ -298,20 +315,17 @@ public class ImplDecodeFeed implements DecodeFeed {
 
         audioTrack.play();
         
-       
         if (playerState.get() == PlayerStates.READING_HEADER) {
 	        events.sendEvent(PlayerEvents.READY_TO_PLAY);
 	        //We're ready to starting to read actual content
 	        playerState.set(PlayerStates.READY_TO_PLAY);
         }
-        
         events.sendEvent(PlayerEvents.TRACK_INFO, decodeStreamInfo.getVendor(),
     			decodeStreamInfo.getTitle(),
     			decodeStreamInfo.getArtist(),
     			decodeStreamInfo.getAlbum(),
     			decodeStreamInfo.getDate(),
     			decodeStreamInfo.getTrack());
-        
     }
 
     /**
@@ -319,6 +333,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     @Override
     public void onStartReadingHeader() {
+    	Log.e(TAG, "onStartReadingHeader called, state="+playerState.get());
         if (playerState.isStopped()) {
         	events.sendEvent(PlayerEvents.READING_HEADER);
             playerState.set(PlayerStates.READING_HEADER);

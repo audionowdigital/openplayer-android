@@ -56,6 +56,7 @@ public class Player implements Runnable {
     	 events = new PlayerEvents(handler);
     	 this.decodeFeed = new ImplDecodeFeed(playerState, events);
     	 
+    	 
     	 // pass the DecodeFeed interface to the native JNI layer, we will get all calls there
     	 Log.d(TAG,"Player constructor, type:"+type);
     	/* switch (type) {
@@ -144,7 +145,10 @@ public class Player implements Runnable {
      * Stops the player and notifies the decode feed
      */
     public synchronized void stop() {
-        decodeFeed.onStop();
+    	if (type == DecoderType.MX)
+    		MXDecoder.stop();
+    	
+    	decodeFeed.onStop();
         // make sure the thread gets unlocked
     	//decodeFeed.syncNotify();
     }

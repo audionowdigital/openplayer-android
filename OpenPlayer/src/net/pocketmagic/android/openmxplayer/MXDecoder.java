@@ -37,12 +37,15 @@ public class MXDecoder {
 
 	private static MediaExtractor extractor;
 	private static MediaCodec codec;
+	private static boolean stop = false;
 		
 	// currently unused
 	public static int init(int param) {
 		return 0;
 	}
-	
+	public static void stop() {
+		stop = true;
+	}
 	// the main loop to read data, decode, write
 	public static int readDecodeWriteLoop(DecodeFeed decodeFeed) {
 		
@@ -50,7 +53,7 @@ public class MXDecoder {
 	    int sampleRate = 0, channels = 0, bitrate = 0;
 	    long presentationTimeUs = 0, duration = 0;
 
-	    boolean stop = false;
+	    stop = false;
 	    
 		// start right away
 		decodeFeed.onStartReadingHeader();
@@ -118,7 +121,12 @@ public class MXDecoder {
         extractor.selectTrack(0);
         
         // start decoding
+        
+        // D/MXDecoder(4934): dequeueOutputBuffer returned -1
+        // E/SoftMP3(4934): mp3 decoder returned error 12
+
         final long kTimeOutUs = 1000;
+
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
         boolean sawInputEOS = false;
         boolean sawOutputEOS = false;
@@ -131,6 +139,8 @@ public class MXDecoder {
         	// pause implementation
         	//waitPlay();
         	decodeFeed.onReadEncodedData(null,  0); //we read nothing, but we use this to block
+        	
+        	Log.e(TAG, "main loop");
         	
         	noOutputCounter++;
         	// read a buffer before feeding it to the decoder
@@ -158,9 +168,10 @@ public class MXDecoder {
                 }
             } // !sawInputEOS
 
-            // decode to PCM and push it to the AudioTrack player
+            // decode to PCM 
             int res = codec.dequeueOutputBuffer(info, kTimeOutUs);
-
+            Log.e(TAG,"dequeueOutputBuffer res: " + res);
+            // push PCM to the AudioTrack player
             if (res >= 0) {
                 if (info.size > 0)  noOutputCounter = 0;
                 
@@ -195,8 +206,13 @@ public class MXDecoder {
         }
         
         Log.d(TAG, "stopping...");
-        
+        //ByteBuffer[] codecInputBuffers  = codec.getInputBuffers();
+        //ByteBuffer[] codecOutputBuffers = codec.getOutputBuffers();
+      
+        //codec.
         if(codec != null) {
+        	Log.d(TAG, "Release codec");
+        	
 			codec.stop();
 			codec.release();
 			codec = null;
