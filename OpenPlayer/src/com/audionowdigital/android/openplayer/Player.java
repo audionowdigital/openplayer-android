@@ -20,9 +20,9 @@ public class Player implements Runnable {
 		VORBIS,
 		UNKNOWN
 	};
-	
+
 	DecoderType type = DecoderType.UNKNOWN;
-	
+
     /**
      * Logging tag
      */
@@ -37,7 +37,7 @@ public class Player implements Runnable {
      * Current state of the player
      */
     private PlayerStates playerState = new PlayerStates();
-    
+
     /**
      * The player events used to inform a client
      */
@@ -52,7 +52,7 @@ public class Player implements Runnable {
     	 this.type = type;
     	 events = new PlayerEvents(handler);
     	 this.decodeFeed = new ImplDecodeFeed(playerState, events);
-    	 
+
     	 // pass the DecodeFeed interface to the native JNI layer, we will get all calls there
     	 Log.d(TAG,"Player constructor, type:"+type);
     	/* switch (type) {
@@ -61,7 +61,7 @@ public class Player implements Runnable {
     	 Log.e(TAG, "preparing ot init");
     	 if (type == DecoderType.OPUS)
     		 OpusDecoder.initJni(1);
-    	 else 
+    	 else
     		 VorbisDecoder.initJni(1);
     }
 
@@ -106,13 +106,13 @@ public class Player implements Runnable {
             return;
         }
     	if (playerState.get() != PlayerStates.READY_TO_PLAY) {
-            throw new IllegalStateException("Must be ready first!");    		
+            throw new IllegalStateException("Must be ready first!");
         }
     	playerState.set(PlayerStates.PLAYING);
     	// make sure the thread gets unlocked
     	decodeFeed.syncNotify();
     }
-    
+
     public void pause() {
         if (playerState.get() == PlayerStates.READING_HEADER){
             stop();
@@ -132,7 +132,7 @@ public class Player implements Runnable {
     	// make sure the thread gets locked
     	decodeFeed.syncNotify();
     }
-    
+
     /**
      * Stops the player and notifies the decode feed
      */
@@ -141,14 +141,14 @@ public class Player implements Runnable {
         // make sure the thread gets unlocked
     	//decodeFeed.syncNotify();
     }
-    
+
 
     @Override
     public void run() {
     	Log.e(TAG, "Start the native decoder");
-        
+
         android.os.Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
-        
+
         int result;
         if (type == DecoderType.OPUS) {
         	Log.e(TAG, "call opus readwrite loop");
@@ -159,11 +159,12 @@ public class Player implements Runnable {
         	result = VorbisDecoder.readDecodeWriteLoop(decodeFeed);
         }
 
-        if (decodeFeed.getDataSource()!=null && !decodeFeed.getDataSource().isSourceValid()) {
+        if (decodeFeed.getDataSource()!=null && !decodeFeed.getDataSource().isSourceValid() && !(decodeFeed.getDataSource().getReadOffset() > 0)) {
             // Invalid data source
             events.sendEvent(PlayerEvents.PLAYING_FAILED);
             return;
         }
+
         Log.e(TAG, "Result: " + result);
         switch (result) {
             case DecodeFeed.SUCCESS:
@@ -175,6 +176,8 @@ public class Player implements Runnable {
                 Log.e(TAG, "Invalid header error received");
                 break;
         }
+
+
     }
 
     /**
@@ -194,7 +197,7 @@ public class Player implements Runnable {
     public synchronized boolean isReadyToPlay() {
         return playerState.isReadyToPlay();
     }
-    
+
     /**
      * Checks whether the player is currently stopped (not playing)
      *
@@ -221,9 +224,9 @@ public class Player implements Runnable {
     public synchronized void setPosition(int percentage) {
         decodeFeed.setPosition(percentage);
     }
-    
+
     /**
-     * 
+     *
      * @return returns the player position in track in seconds
      */
     public int getCurrentPosition(){
