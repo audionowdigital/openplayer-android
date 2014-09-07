@@ -150,7 +150,7 @@ public class Player implements Runnable {
     	
     	decodeFeed.onStop();
         // make sure the thread gets unlocked
-    	//decodeFeed.syncNotify();
+    	decodeFeed.syncNotify();
     }
     
 

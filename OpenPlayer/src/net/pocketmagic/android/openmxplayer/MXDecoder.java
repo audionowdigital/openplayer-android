@@ -78,7 +78,7 @@ public class MXDecoder {
 		}
 		
         // Read track header
-        MediaFormat format = null;
+        MediaFormat format = null; 
         try {
         	format = extractor.getTrackFormat(0);
 	        mime = format.getString(MediaFormat.KEY_MIME);
@@ -125,9 +125,10 @@ public class MXDecoder {
         // D/MXDecoder(4934): dequeueOutputBuffer returned -1
         // E/SoftMP3(4934): mp3 decoder returned error 12
 
-        final long kTimeOutUs = 1000;
+        final long kTimeOutUs = 10;
 
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+        
         boolean sawInputEOS = false;
         boolean sawOutputEOS = false;
         int noOutputCounter = 0;
@@ -138,6 +139,7 @@ public class MXDecoder {
         	
         	// pause implementation
         	//waitPlay();
+        	Log.e(TAG, "before reader");
         	decodeFeed.onReadEncodedData(null,  0); //we read nothing, but we use this to block
         	
         	Log.e(TAG, "main loop");
@@ -145,7 +147,9 @@ public class MXDecoder {
         	noOutputCounter++;
         	// read a buffer before feeding it to the decoder
             if (!sawInputEOS) {
+            	Log.e(TAG, "start-1");
             	int inputBufIndex = codec.dequeueInputBuffer(kTimeOutUs);
+            	Log.d(TAG, "stop-1");
                 if (inputBufIndex >= 0) {
                     ByteBuffer dstBuf = codecInputBuffers[inputBufIndex];
                     int sampleSize = extractor.readSampleData(dstBuf, 0);
@@ -169,7 +173,9 @@ public class MXDecoder {
             } // !sawInputEOS
 
             // decode to PCM 
+            Log.e(TAG, "start-2");
             int res = codec.dequeueOutputBuffer(info, kTimeOutUs);
+            Log.d(TAG, "stop-2");
             Log.e(TAG,"dequeueOutputBuffer res: " + res);
             // push PCM to the AudioTrack player
             if (res >= 0) {
@@ -194,7 +200,7 @@ public class MXDecoder {
                     Log.d(TAG, "saw output EOS.");
                     sawOutputEOS = true;
                 }
-            } else if (res == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
+            } /*else if (res == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
                 codecOutputBuffers = codec.getOutputBuffers();
                 Log.d(TAG, "output buffers have changed.");
             } else if (res == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
@@ -202,7 +208,7 @@ public class MXDecoder {
                 Log.d(TAG, "output format has changed to " + oformat);
             } else {
                 Log.d(TAG, "dequeueOutputBuffer returned " + res);
-            }
+            }*/
         }
         
         Log.d(TAG, "stopping...");
@@ -218,6 +224,8 @@ public class MXDecoder {
 			codec = null;
 		}
 	    
+        extractor.release();
+        
 	    // clear source and the other globals
 	    duration = 0;
 	    mime = null;

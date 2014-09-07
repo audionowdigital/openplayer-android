@@ -107,6 +107,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      * A pause mechanism that would block current thread when pause flag is set (READY_TO_PLAY)
      */
     public synchronized void waitPlay(){
+    	Log.e(TAG, "wait - start");
         while(playerState.get() == PlayerStates.READY_TO_PLAY) {
             if (streamSecondsLength == -1){
                 writtenMiliSeconds = 0;
@@ -117,6 +118,7 @@ public class ImplDecodeFeed implements DecodeFeed {
                 e.printStackTrace();
             }
         }
+        Log.e(TAG, "wait - stop");
     }
     
     /**
