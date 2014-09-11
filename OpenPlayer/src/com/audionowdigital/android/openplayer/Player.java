@@ -54,7 +54,7 @@ public class Player implements Runnable {
          }
     	 this.type = type;
     	 events = new PlayerEvents(handler);
-    	 this.decodeFeed = new ImplDecodeFeed(playerState, events);
+    	 this.decodeFeed = new ImplDecodeFeed(playerState, events, type);
     	 
     	 
     	 // pass the DecodeFeed interface to the native JNI layer, we will get all calls there
@@ -236,7 +236,10 @@ public class Player implements Runnable {
      * @param percentage - position where to seek
      */
     public synchronized void setPosition(int percentage) {
-        decodeFeed.setPosition(percentage);
+    	if (type == DecoderType.MX)
+    		MXDecoder.setPositionSec((int) (percentage * getDuration() / 100));
+    	else
+    		decodeFeed.setPosition(percentage);
     }
     
     /**

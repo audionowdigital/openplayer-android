@@ -53,6 +53,8 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     DecodeStreamInfo streamInfo;
     
+	private DecoderType type;
+    
     /**
      * Go a different dataSource route for MX decoder
      */
@@ -63,9 +65,10 @@ public class ImplDecodeFeed implements DecodeFeed {
      *
      */
     
-    public ImplDecodeFeed(PlayerStates playerState, PlayerEvents events) {
+    public ImplDecodeFeed(PlayerStates playerState, PlayerEvents events, DecoderType type) {
     	this.playerState = playerState;
         this.events = events;
+        this.type = type;
         //this.type = type;
 	}
 
@@ -107,7 +110,6 @@ public class ImplDecodeFeed implements DecodeFeed {
      * A pause mechanism that would block current thread when pause flag is set (READY_TO_PLAY)
      */
     public synchronized void waitPlay(){
-    	Log.e(TAG, "wait - start");
         while(playerState.get() == PlayerStates.READY_TO_PLAY) {
             if (streamSecondsLength == -1){
                 writtenMiliSeconds = 0;
@@ -118,7 +120,6 @@ public class ImplDecodeFeed implements DecodeFeed {
                 e.printStackTrace();
             }
         }
-        Log.e(TAG, "wait - stop");
     }
     
     /**
@@ -137,13 +138,13 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     @Override public int onReadEncodedData(byte[] buffer, int amountToWrite) {
     	if (!data.isSourceValid()) {
-    		Log.d(TAG, "onReadEncodedData called, but source is invalid");
+    		//Log.d(TAG, "onReadEncodedData called, but source is invalid");
     		return 0;
     	}
     	//Log.d(TAG, "onReadOpusData call: " + amountToWrite);
         //If the player is not playing or reading the header, return 0 to end the native decode method
         if (playerState.get() == PlayerStates.STOPPED) {
-        	Log.d(TAG, "onReadEncodedData called, but we are stopped");
+        	//Log.d(TAG, "onReadEncodedData called, but we are stopped");
             return 0;
         }
         
@@ -173,6 +174,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         if (streamSecondsLength < 0) {
             throw new IllegalStateException("Stream length must be a positive number");
         }
+        
         long seekPosition = percent * data.getSourceLength() / 100;
         if (data.isSourceValid()) {
             try {
@@ -197,33 +199,41 @@ public class ImplDecodeFeed implements DecodeFeed {
      *
      * @param pcmData      the raw pcm data
      * @param amountToRead the amount available to read in the buffer and dump it to our PCM buffers
+     * @param currentSecond if progress is known (MX decoder), we will push it here, else -1
      */
     @Override
-    public synchronized void onWritePCMData(short[] pcmData, int amountToRead) {
-		waitPlay();
+    public void onWritePCMData(short[] pcmData, int amountToRead, int currentSeconds) {
+    	//Log.e(TAG, "currentSeconds:"+currentSeconds);
+    	waitPlay();
 			
         //If we received data and are playing, write to the audio track
         if (pcmData != null && amountToRead > 0 && audioTrack != null && playerState.isPlaying()) {
             audioTrack.write(pcmData, 0, amountToRead);
             //Log.d("DataSource", "audio track write");
-            // count data
-            writtenPCMData += amountToRead;
-            writtenMiliSeconds += convertBytesToMs(amountToRead);
-
-
-            /*
-             * The idea here is we are loosing some seconds when the packages can't be decoded (on seek, when jumping in the middle of a package), so the overall time count is behind the real position
-             * So when we know the time size of a stream, we can simply keep count of the bytes read form the source, and compute the time position proportionally
-             */
-            if (streamSecondsLength > 0 && data.getSourceLength() > 0) {            	
-            	writtenMiliSeconds = (data.getReadOffset() * streamSecondsLength * 1000) / data.getSourceLength();
+            if (currentSeconds == -1) {
+	            // count data
+	            writtenPCMData += amountToRead;
+	            writtenMiliSeconds += convertBytesToMs(amountToRead);
+	
+	            /*
+	             * The idea here is we are loosing some seconds when the packages can't be decoded (on seek, when jumping in the middle of a package), so the overall time count is behind the real position
+	             * So when we know the time size of a stream, we can simply keep count of the bytes read form the source, and compute the time position proportionally
+	             */
+	            if (streamSecondsLength > 0 && data.getSourceLength() > 0) {       
+	            	writtenMiliSeconds = (data.getReadOffset() * streamSecondsLength * 1000) / data.getSourceLength();
+	            }
+	        } else {
+	            writtenMiliSeconds = currentSeconds * 1000;
             }
+            // streamSecondsLength contains given stream length in seconds
+            // data.getSourceLength() contains detected stream length in bytes
 
             // send a notification of progress
             events.sendEvent(PlayerEvents.PLAY_UPDATE, (int) (writtenMiliSeconds / 1000));
             
             // at this point we know all stream parameters, including the sampleRate, use it to compute current time.
             //Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() +  " time:" + writtenMiliSeconds + " bytes:" + writtenPCMData);
+        
         } else {
             Log.e("DataSource", "audio track error");
         }

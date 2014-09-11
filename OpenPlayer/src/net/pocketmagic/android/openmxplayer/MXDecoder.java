@@ -139,17 +139,13 @@ public class MXDecoder {
         	
         	// pause implementation
         	//waitPlay();
-        	Log.e(TAG, "before reader");
         	decodeFeed.onReadEncodedData(null,  0); //we read nothing, but we use this to block
         	
-        	Log.e(TAG, "main loop");
         	
         	noOutputCounter++;
         	// read a buffer before feeding it to the decoder
             if (!sawInputEOS) {
-            	Log.e(TAG, "start-1");
             	int inputBufIndex = codec.dequeueInputBuffer(kTimeOutUs);
-            	Log.d(TAG, "stop-1");
                 if (inputBufIndex >= 0) {
                     ByteBuffer dstBuf = codecInputBuffers[inputBufIndex];
                     int sampleSize = extractor.readSampleData(dstBuf, 0);
@@ -173,10 +169,7 @@ public class MXDecoder {
             } // !sawInputEOS
 
             // decode to PCM 
-            Log.e(TAG, "start-2");
             int res = codec.dequeueOutputBuffer(info, kTimeOutUs);
-            Log.d(TAG, "stop-2");
-            Log.e(TAG,"dequeueOutputBuffer res: " + res);
             // push PCM to the AudioTrack player
             if (res >= 0) {
                 if (info.size > 0)  noOutputCounter = 0;
@@ -193,14 +186,16 @@ public class MXDecoder {
                 ByteBuffer.wrap(chunk).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts);
                 // feed it to audiotrack
                 if (shorts.length > 0) {
-                	decodeFeed.onWritePCMData(shorts, shorts.length);
+                	// we have PCM data and we also know exact position in the source: only for MX
+                	decodeFeed.onWritePCMData(shorts, shorts.length, (int) (extractor.getSampleTime() / 1000000));
                 }
+                //Log.e(TAG, "extractor time:" + extractor.getSampleTime());
                 codec.releaseOutputBuffer(outputBufIndex, false);
                 if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                     Log.d(TAG, "saw output EOS.");
                     sawOutputEOS = true;
                 }
-            } /*else if (res == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
+            } else if (res == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
                 codecOutputBuffers = codec.getOutputBuffers();
                 Log.d(TAG, "output buffers have changed.");
             } else if (res == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
@@ -208,7 +203,7 @@ public class MXDecoder {
                 Log.d(TAG, "output format has changed to " + oformat);
             } else {
                 Log.d(TAG, "dequeueOutputBuffer returned " + res);
-            }*/
+            }
         }
         
         Log.d(TAG, "stopping...");
@@ -244,6 +239,14 @@ public class MXDecoder {
         //---------------------------
 		decodeFeed.onStop();
 		return err;
+	}
+	
+	/**
+	 * Set the track play position to the given value
+	 * @param pos the new position in seconds
+	 */
+	public static void setPositionSec(int pos) {
+		extractor.seekTo(pos * 1000000, MediaExtractor.SEEK_TO_CLOSEST_SYNC);		
 	}
 
 }

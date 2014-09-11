@@ -61,6 +61,8 @@ public class MainActivity extends Activity {
     private TextView logArea;
     private SeekBar seekBar;
     
+    private int LENGTH = 0;
+    
     private int DEBUG_PODCAST_LENGTH = 200;
     // Creates and sets our activities layout
     @Override public void onCreate(Bundle savedInstanceState) {
@@ -73,7 +75,7 @@ public class MainActivity extends Activity {
         
         scrollView.addView(panelV);
         logArea = new TextView(this);
-        logArea.setText("Welcome to OPENPlayer v 1.0.109  Press Init->Play");
+        logArea.setText("Welcome to OPENPlayer v 1.0.110  Press Init->Play");
         panelV.addView(logArea);
         
         Button b = new Button(this);
@@ -84,7 +86,7 @@ public class MainActivity extends Activity {
 				switch (type) {
 					case VORBIS: player.setDataSource("/sdcard/countdown.ogg", 11); break;
 					case OPUS: player.setDataSource("/sdcard/countdown.opus", 11); break;
-					case MX: player.setDataSource("/sdcard/countdown.opus", 11); break;
+					case MX: player.setDataSource("/sdcard/countdown.mp3", 11); break;
 				}
 			
 		    }
@@ -94,9 +96,12 @@ public class MainActivity extends Activity {
         final EditText et = new EditText(this);
         et.setTextSize(10);
         switch (type) {
-        	case VORBIS: et.setText("http://icecast1.pulsradio.com:80/mxHD.ogg"); break;
-        	case OPUS: et.setText("http://www.markosoft.ro/opus/02_Archangel.opus"); break;
-        	case MX: et.setText("http://stream.rfi.fr/rfimonde/all/rfimonde-64k.mp3"); break;
+        	case VORBIS: //et.setText("http://icecast1.pulsradio.com:80/mxHD.ogg"); LENGTH = -1; break;
+        		et.setText("http://markosoft.ro/test.ogg"); LENGTH = 215; break;
+        	case OPUS: et.setText("http://www.markosoft.ro/opus/02_Archangel.opus"); LENGTH = 154; break;
+        	case MX: 
+        		et.setText("http://stream.rfi.fr/rfimonde/all/rfimonde-64k.mp3"); LENGTH = -1; break;
+        		//et.setText("http://www.pocketmagic.net/tmp3/demondance.mp3"); LENGTH = 30; break; // 30sec
         }
         
         panelV.addView(et);
@@ -109,7 +114,7 @@ public class MainActivity extends Activity {
 				Log.d(TAG, "Set source:" + et.getEditableText().toString());
 				//InputStream urlStrem = getStreamURL(et.getEditableText().toString());
 				//player.setDataSource(et.getEditableText().toString(), 17169);
-				player.setDataSource(et.getEditableText().toString(), 154);
+				player.setDataSource(et.getEditableText().toString(), LENGTH);
 		    }
 		});
         panelV.addView(b);
@@ -161,7 +166,7 @@ public class MainActivity extends Activity {
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
             	if (b) {
-            		Log.d("SEEK", i+""); player.setPosition(i);
+            		Log.d(TAG, "Seek:"+i+""); player.setPosition(i);
             	}
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
