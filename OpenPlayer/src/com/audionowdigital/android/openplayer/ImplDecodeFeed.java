@@ -24,7 +24,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     /**
      * The audio track to write the raw pcm bytes to
      */
-    protected AudioTrack audioTrack;
+    protected static AudioTrack audioTrack;
 
     /**
      * The input stream to decode from
@@ -219,8 +219,8 @@ public class ImplDecodeFeed implements DecodeFeed {
         //Stop the audio track
         if (audioTrack != null) {
             Log.d(TAG, "Audiotrack flush");
-            audioTrack.flush();
             try {
+                audioTrack.flush();
                 audioTrack.stop();
             } catch (Exception ex) {
                 Log.e(TAG, "Audiotrack stop ex:"+ex.getMessage());
@@ -293,11 +293,15 @@ public class ImplDecodeFeed implements DecodeFeed {
         //Create the audio track
         int channelConfiguration = decodeStreamInfo.getChannels() == 1 ? AudioFormat.CHANNEL_OUT_MONO : AudioFormat.CHANNEL_OUT_STEREO;
         int minSize = AudioTrack.getMinBufferSize((int) decodeStreamInfo.getSampleRate(), channelConfiguration, AudioFormat.ENCODING_PCM_16BIT);
-        audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, (int) decodeStreamInfo.getSampleRate(), channelConfiguration, 
-        		AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
+        if (minSize < 8 * 1024) minSize = 8 * 1024;
 
-        audioTrack.play();
-        
+        try {
+            audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, (int) decodeStreamInfo.getSampleRate(), channelConfiguration,
+                    AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
+            audioTrack.play();
+        } catch (Exception ex) {
+            return;
+        }
        
         if (playerState.get() == PlayerStates.READING_HEADER) {
 	        events.sendEvent(PlayerEvents.READY_TO_PLAY);
