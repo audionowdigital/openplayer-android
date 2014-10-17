@@ -159,6 +159,9 @@ public class ImplDecodeFeed implements DecodeFeed {
         if (streamSecondsLength < 0) {
             throw new IllegalStateException("Stream length must be a positive number");
         }
+        if (data == null)
+            return;
+
         long seekPosition = percent * data.getSourceLength() / 100;
         if (data.isSourceValid()) {
             try {
@@ -226,7 +229,6 @@ public class ImplDecodeFeed implements DecodeFeed {
                 Log.e(TAG, "Audiotrack stop ex:"+ex.getMessage());
             }
             audioTrack = null;
-
         }
     }
     /**
