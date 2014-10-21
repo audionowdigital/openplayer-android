@@ -8,8 +8,6 @@ import android.util.Log;
 import org.xiph.opus.decoderjni.OpusDecoder;
 import org.xiph.vorbis.decoderjni.VorbisDecoder;
 
-import java.io.InputStream;
-
 /**
  * The OpusPlayer is responsible for decoding a opus bitstream into raw PCM data to play to an {@link AudioTrack}
  */
