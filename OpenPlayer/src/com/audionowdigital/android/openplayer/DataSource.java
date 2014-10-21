@@ -152,8 +152,17 @@ public class DataSource  {
 		
 		if (dataSource == DATA_SRC_LOCAL) {
 			try {
-				inputStream.reset(); // will reset to mark: TODO: test if memory is ok on local big files
-				long skip = inputStream.skip(offset);
+			    int retry = 10;
+                long skip = 0;
+                // enforce skip to correct position for local inputstreams
+                do {
+                    inputStream.reset(); // will reset to mark: TODO: test if memory is ok on local big files
+
+                    skip = inputStream.skip(offset);
+                    retry --;
+                    Log.e("SKIP", "res skip:" + skip + " retry:" + retry);
+                } while (Math.abs(skip - offset) > 4096 && retry > 0);
+
                 readoffset = offset;
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
