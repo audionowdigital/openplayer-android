@@ -1,5 +1,7 @@
 package com.audionowdigital.android.openplayer;
 
+import com.audionowdigital.android.openplayer.Player.DecoderType;
+
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
@@ -51,14 +53,23 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     DecodeStreamInfo streamInfo;
     
+	private DecoderType type;
+    
+    /**
+     * Go a different dataSource route for MX decoder
+     */
+	//private DecoderType type;
+    
     /**
      * Creates a decode feed that reads from a file and writes to an {@link AudioTrack}
      *
      */
     
-    public ImplDecodeFeed(PlayerStates playerState, PlayerEvents events) {
+    public ImplDecodeFeed(PlayerStates playerState, PlayerEvents events, DecoderType type) {
     	this.playerState = playerState;
         this.events = events;
+        this.type = type;
+        //this.type = type;
 	}
 
     /**
@@ -127,16 +138,20 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     @Override public int onReadEncodedData(byte[] buffer, int amountToWrite) {
     	if (!data.isSourceValid()) {
+    		//Log.d(TAG, "onReadEncodedData called, but source is invalid");
     		return 0;
     	}
     	//Log.d(TAG, "onReadOpusData call: " + amountToWrite);
         //If the player is not playing or reading the header, return 0 to end the native decode method
         if (playerState.get() == PlayerStates.STOPPED) {
+        	//Log.d(TAG, "onReadEncodedData called, but we are stopped");
             return 0;
         }
         
         waitPlay();
-
+        
+        if (buffer == null) return 0;
+        
         //Otherwise read from the file
         try {
             int read = data.read(buffer, 0, amountToWrite);
@@ -144,7 +159,7 @@ public class ImplDecodeFeed implements DecodeFeed {
             return read == -1 ? 0 : read;
         } catch (Exception e) {
             //There was a problem reading from the file
-            Log.e(TAG, "Failed to read opus data from file.  Aborting.", e);
+            Log.e(TAG, "Failed to read encoded data from file.  Aborting.", e);
             return 0;
         }
     }
@@ -159,6 +174,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         if (streamSecondsLength < 0) {
             throw new IllegalStateException("Stream length must be a positive number");
         }
+
         if (data == null)
             return;
 
@@ -186,33 +202,41 @@ public class ImplDecodeFeed implements DecodeFeed {
      *
      * @param pcmData      the raw pcm data
      * @param amountToRead the amount available to read in the buffer and dump it to our PCM buffers
+     * @param currentSecond if progress is known (MX decoder), we will push it here, else -1
      */
     @Override
-    public synchronized void onWritePCMData(short[] pcmData, int amountToRead) {
-		waitPlay();
+    public void onWritePCMData(short[] pcmData, int amountToRead, int currentSeconds) {
+    	//Log.e(TAG, "currentSeconds:"+currentSeconds);
+    	waitPlay();
 			
         //If we received data and are playing, write to the audio track
         if (pcmData != null && amountToRead > 0 && audioTrack != null && playerState.isPlaying()) {
             audioTrack.write(pcmData, 0, amountToRead);
             //Log.d("DataSource", "audio track write");
-            // count data
-            writtenPCMData += amountToRead;
-            writtenMiliSeconds += convertBytesToMs(amountToRead);
-
-
-            /*
-             * The idea here is we are loosing some seconds when the packages can't be decoded (on seek, when jumping in the middle of a package), so the overall time count is behind the real position
-             * So when we know the time size of a stream, we can simply keep count of the bytes read form the source, and compute the time position proportionally
-             */
-            if (streamSecondsLength > 0 && data.getSourceLength() > 0) {            	
-            	writtenMiliSeconds = (data.getReadOffset() * streamSecondsLength * 1000) / data.getSourceLength();
+            if (currentSeconds == -1) {
+	            // count data
+	            writtenPCMData += amountToRead;
+	            writtenMiliSeconds += convertBytesToMs(amountToRead);
+	
+	            /*
+	             * The idea here is we are loosing some seconds when the packages can't be decoded (on seek, when jumping in the middle of a package), so the overall time count is behind the real position
+	             * So when we know the time size of a stream, we can simply keep count of the bytes read form the source, and compute the time position proportionally
+	             */
+	            if (streamSecondsLength > 0 && data.getSourceLength() > 0) {       
+	            	writtenMiliSeconds = (data.getReadOffset() * streamSecondsLength * 1000) / data.getSourceLength();
+	            }
+	        } else {
+	            writtenMiliSeconds = currentSeconds * 1000;
             }
+            // streamSecondsLength contains given stream length in seconds
+            // data.getSourceLength() contains detected stream length in bytes
 
             // send a notification of progress
             events.sendEvent(PlayerEvents.PLAY_UPDATE, (int) (writtenMiliSeconds / 1000));
             
             // at this point we know all stream parameters, including the sampleRate, use it to compute current time.
             //Log.e(TAG, "sample rate: " + streamInfo.getSampleRate() + " " + streamInfo.getChannels() + " " + streamInfo.getVendor() +  " time:" + writtenMiliSeconds + " bytes:" + writtenPCMData);
+        
         } else {
             Log.e("DataSource", "audio track error");
         }
@@ -222,6 +246,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         //Stop the audio track
         if (audioTrack != null) {
             Log.d(TAG, "Audiotrack flush");
+
             try {
                 audioTrack.flush();
                 audioTrack.stop();
@@ -240,10 +265,15 @@ public class ImplDecodeFeed implements DecodeFeed {
         	writtenPCMData = 0;
             writtenMiliSeconds = 0;
             //Closes the file input stream
-            if (data.isSourceValid())
+            
+            if (data.isSourceValid()) {
+            	Log.d(TAG, "onStop called with valid data source");
             	data.release();
-
-            Log.d("Player_Status", "decoding complete");
+            } else
+        	Log.e(TAG, "onStop invalid data source");
+            
+            Log.d(TAG, "decoding complete");
+            
             stopAudioTrack();
         }
         //Set our state to stopped
@@ -271,6 +301,7 @@ public class ImplDecodeFeed implements DecodeFeed {
 
     	if (playerState.get() != PlayerStates.READING_HEADER &&
         		playerState.get() != PlayerStates.PLAYING) {
+    		Log.e(TAG, "Must read header first!");
             //throw new IllegalStateException("Must read header first!");
             return;
         }
@@ -288,7 +319,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         
         // we are already playing but track changed
         if (playerState.get() != PlayerStates.STOPPED) {
-            Log.d("Player_Status", "change track");
+            Log.d(TAG, "change track");
             stopAudioTrack();
         }
         
@@ -310,14 +341,12 @@ public class ImplDecodeFeed implements DecodeFeed {
 	        //We're ready to starting to read actual content
 	        playerState.set(PlayerStates.READY_TO_PLAY);
         }
-        
         events.sendEvent(PlayerEvents.TRACK_INFO, decodeStreamInfo.getVendor(),
     			decodeStreamInfo.getTitle(),
     			decodeStreamInfo.getArtist(),
     			decodeStreamInfo.getAlbum(),
     			decodeStreamInfo.getDate(),
     			decodeStreamInfo.getTrack());
-        
     }
 
     /**
@@ -325,6 +354,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     @Override
     public void onStartReadingHeader() {
+    	Log.e(TAG, "onStartReadingHeader called, state="+playerState.get());
         if (playerState.isStopped()) {
         	events.sendEvent(PlayerEvents.READING_HEADER);
             playerState.set(PlayerStates.READING_HEADER);

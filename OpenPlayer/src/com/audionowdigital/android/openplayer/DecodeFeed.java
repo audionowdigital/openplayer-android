@@ -33,8 +33,9 @@ public interface DecodeFeed {
      *
      * @param pcmData      the raw pcm data
      * @param amountToRead the amount available to read in the buffer
+     * @param currentSeconds if progress is known (MX decoder), we will push it here, else -1
      */
-    public void onWritePCMData(short[] pcmData, int amountToRead);
+    public void onWritePCMData(short[] pcmData, int amountToRead, int currentSeconds);
 
     /**
      * To be called when decoding has completed
@@ -59,5 +60,7 @@ public interface DecodeFeed {
      * @param percent - percentage where to seek
      */
     public void setPosition(int percent);
+    
+    public DataSource getDataSource();
 
 }

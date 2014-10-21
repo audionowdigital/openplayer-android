@@ -146,6 +146,14 @@ public class DataSource  {
 		return DATA_SRC_INVALID;	
 	}
 	
+	public InputStream getInputStream() {
+		return inputStream;
+	}
+	
+	public String getPath() {
+		return dataPath;
+	}
+	
 	public synchronized int skip(long offset) {
 		// invalid content fix : make sure we are pass the header always
 		if (offset < 500) offset = 500;

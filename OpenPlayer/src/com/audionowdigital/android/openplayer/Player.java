@@ -5,6 +5,8 @@ import android.os.Handler;
 import android.os.Process;
 import android.util.Log;
 
+import net.pocketmagic.android.openmxplayer.MXDecoder;
+
 import org.xiph.opus.decoderjni.OpusDecoder;
 import org.xiph.vorbis.decoderjni.VorbisDecoder;
 
@@ -16,6 +18,7 @@ public class Player implements Runnable {
 	public enum DecoderType {
 		OPUS,
 		VORBIS,
+		MX,
 		UNKNOWN
 	};
 	
@@ -49,18 +52,23 @@ public class Player implements Runnable {
          }
     	 this.type = type;
     	 events = new PlayerEvents(handler);
-    	 this.decodeFeed = new ImplDecodeFeed(playerState, events);
+    	 this.decodeFeed = new ImplDecodeFeed(playerState, events, type);
+    	 
     	 
     	 // pass the DecodeFeed interface to the native JNI layer, we will get all calls there
     	 Log.d(TAG,"Player constructor, type:"+type);
     	/* switch (type) {
     	 case DecoderType.OPUS: 
     	 }*/
-    	 Log.e(TAG, "preparing ot init");
-    	 if (type == DecoderType.OPUS)
-    		 OpusDecoder.initJni(1);
-    	 else 
-    		 VorbisDecoder.initJni(1);
+    	 Log.e(TAG, "preparing to init:"+type);
+    	 switch (type) {
+    		 case OPUS: OpusDecoder.initJni(1); break;
+    		 case VORBIS: VorbisDecoder.initJni(1); break;
+    		 case MX: MXDecoder.init(1); break;
+		default:
+			break;
+    	 }
+    	  
     }
 
     public void stopAudioTrack(){
@@ -135,9 +143,12 @@ public class Player implements Runnable {
      * Stops the player and notifies the decode feed
      */
     public synchronized void stop() {
-        decodeFeed.onStop();
+    	if (type == DecoderType.MX)
+    		MXDecoder.stop();
+    	
+    	decodeFeed.onStop();
         // make sure the thread gets unlocked
-    	//decodeFeed.syncNotify();
+    	decodeFeed.syncNotify();
     }
     
 
@@ -147,14 +158,20 @@ public class Player implements Runnable {
         
         android.os.Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
         
-        int result;
-        if (type == DecoderType.OPUS) {
-        	Log.e(TAG, "call opus readwrite loop");
-        	result = OpusDecoder.readDecodeWriteLoop(decodeFeed);
-        }
-        else {
-        	Log.e(TAG, "call vorbis readwrite loop");
-        	result = VorbisDecoder.readDecodeWriteLoop(decodeFeed);
+        int result = 0;
+        switch (type) {
+        	case OPUS:
+        		Log.e(TAG, "call opus readwrite loop");
+        		result = OpusDecoder.readDecodeWriteLoop(decodeFeed);
+        	break;
+        	case VORBIS:
+        		Log.e(TAG, "call vorbis readwrite loop");
+        		result = VorbisDecoder.readDecodeWriteLoop(decodeFeed);
+        	break;
+        	case MX:
+        		Log.e(TAG, "call mx readwrite loop");
+        		result = MXDecoder.readDecodeWriteLoop(decodeFeed);
+        	break;
         }
 
         if (decodeFeed.getDataSource()!=null && !decodeFeed.getDataSource().isSourceValid()) {
@@ -217,7 +234,10 @@ public class Player implements Runnable {
      * @param percentage - position where to seek
      */
     public synchronized void setPosition(int percentage) {
-        decodeFeed.setPosition(percentage);
+    	if (type == DecoderType.MX)
+    		MXDecoder.setPositionSec((int) (percentage * getDuration() / 100));
+    	else
+    		decodeFeed.setPosition(percentage);
     }
     
     /**
