@@ -1,8 +1,17 @@
+/*
+ * DecodeFeed.java - A feed interface which raw PCM data will be written to and encoded  data will be read from
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 package com.audionowdigital.android.openplayer;
 
 /**
- * A feed interface which raw PCM data will be written to and encoded  data will be read from
+ * Created by radhoo on /14.
  */
+
 public interface DecodeFeed {
     /**
      * Everything was a success

@@ -1,5 +1,12 @@
-#include "DecodeFeed.h"
+/*
+ * DecodeFeed.c
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
 
+#include "DecodeFeed.h"
 
 //Stops the vorbis data feed
 void onStop(JNIEnv *env, jobject* javaDecodeFeedObj, jmethodID* stopMethodId) {

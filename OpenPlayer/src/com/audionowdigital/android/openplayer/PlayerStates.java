@@ -1,6 +1,18 @@
+/*
+ * PlayerStates.java - a class that defines the internal states of the Player
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 package com.audionowdigital.android.openplayer;
 
 import android.util.Log;
+
+/**
+ * Created by radhoo on /14.
+ */
 
 public class PlayerStates {
 	 /**

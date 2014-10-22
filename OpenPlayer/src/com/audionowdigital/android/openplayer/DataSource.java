@@ -1,7 +1,14 @@
+/*
+ * DataSource.java -- data source handler for both local and online content
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 package com.audionowdigital.android.openplayer;
 
 import android.util.Log;
-
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -11,6 +18,10 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+
+/**
+ * Created by radhoo on /14.
+ */
 
 public class DataSource  {
 

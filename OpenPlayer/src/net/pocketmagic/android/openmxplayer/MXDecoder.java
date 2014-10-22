@@ -1,30 +1,28 @@
+/*
+ * OpenMXPlayer - Freeware audio player library for Android
+ *
+ * Copyright (C) 2009 - 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * This file is a part of "OpenMXPlayer" open source library. Licensed under LGPL
+ *
+ * http://www.pocketmagic.net/2014/06/android-audio-player-using-mediacodec-mediaextractor/
+ */
+
 package net.pocketmagic.android.openmxplayer;
 
-/*
-** OpenMXPlayer - Freeware audio player library for Android
-** Copyright (C) 2009 - 2014 Radu Motisan, radu.motisan@gmail.com
-**
-** This file is a part of "OpenMXPlayer" open source library.
-**/
-import java.io.FileDescriptor;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import android.media.MediaCodec;
+import android.media.MediaExtractor;
+import android.media.MediaFormat;
+import android.util.Log;
 
 import com.audionowdigital.android.openplayer.DecodeFeed;
 
-import android.content.Context;
-import android.content.res.AssetFileDescriptor;
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioTrack;
-import android.media.MediaCodec;
-import android.media.MediaCodecInfo;
-import android.media.MediaCodecList;
-import android.media.MediaExtractor;
-import android.media.MediaFormat;
-import android.os.Handler;
-import android.util.Log;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
+/**
+ * Created by radhoo on /14.
+ */
 
 public class MXDecoder {
 	private static final String TAG = "MXDecoder";

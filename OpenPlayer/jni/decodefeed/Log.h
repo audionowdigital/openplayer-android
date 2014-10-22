@@ -1,3 +1,11 @@
+/*
+ * Log.h
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 #include <android/log.h>
 
 extern int debug;

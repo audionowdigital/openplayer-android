@@ -1,3 +1,12 @@
+/*
+ * org_xiph_opus_decoderjni_OpusDecoder.h
+ * Takes a opus bitstream from java callbacks from JNI and writes raw stereo PCM to the jni callbacks. Decodes simple and chained OggOpus files from beginning to end.
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 #include <jni.h>
 #include <stdio.h>
 #include <stdlib.h>

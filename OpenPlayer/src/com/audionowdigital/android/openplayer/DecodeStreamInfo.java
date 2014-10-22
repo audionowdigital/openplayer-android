@@ -1,8 +1,17 @@
+/*
+ * DecodeStreamInfo.java - A class to define stream info, called with native {@link start} method in {@link DecodeFeed}
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 package com.audionowdigital.android.openplayer;
 
 /**
- * A class to define stream info, called with native {@link start} method in {@link DecodeFeed}
+ * Created by radhoo on /14.
  */
+
 public class DecodeStreamInfo {
     private long sampleRate;
 

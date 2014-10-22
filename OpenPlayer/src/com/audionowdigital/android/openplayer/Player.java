@@ -1,6 +1,13 @@
+/*
+ * Player.java - The Player is responsible for decoding a bitstream into raw PCM data to play to an {@link AudioTrack}
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 package com.audionowdigital.android.openplayer;
 
-import android.media.AudioTrack;
 import android.os.Handler;
 import android.os.Process;
 import android.util.Log;
@@ -11,8 +18,9 @@ import org.xiph.opus.decoderjni.OpusDecoder;
 import org.xiph.vorbis.decoderjni.VorbisDecoder;
 
 /**
- * The OpusPlayer is responsible for decoding a opus bitstream into raw PCM data to play to an {@link AudioTrack}
+ * Created by radhoo on /14.
  */
+
 public class Player implements Runnable {
 
 	public enum DecoderType {

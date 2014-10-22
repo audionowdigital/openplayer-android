@@ -1,3 +1,11 @@
+/*
+ * ImplDecodeFeed.java - Custom class to easily buffer and decode from a stream and write to an {@link AudioTrack}
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 package com.audionowdigital.android.openplayer;
 
 import com.audionowdigital.android.openplayer.Player.DecoderType;
@@ -8,8 +16,9 @@ import android.media.AudioTrack;
 import android.util.Log;
 
 /**
- * Custom class to easily buffer and decode from a stream and write to an {@link AudioTrack}
+ * Created by radhoo on /14.
  */
+
 public class ImplDecodeFeed implements DecodeFeed {
 	/**
 	 * The debug tag
