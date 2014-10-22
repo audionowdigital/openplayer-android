@@ -35,7 +35,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     /**
      * The audio track to write the raw pcm bytes to
      */
-    protected static AudioTrack audioTrack;
+    protected AudioTrack audioTrack;
 
     /**
      * The input stream to decode from
