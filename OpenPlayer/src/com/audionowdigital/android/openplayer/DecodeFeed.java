@@ -52,6 +52,11 @@ public interface DecodeFeed {
     public void onStop();
 
     /**
+     * To be called when decoding has encountered an error
+     */
+    //§public void onError();
+
+    /**
      * Puts the decode feed in the reading header state
      */
     public void onStartReadingHeader();

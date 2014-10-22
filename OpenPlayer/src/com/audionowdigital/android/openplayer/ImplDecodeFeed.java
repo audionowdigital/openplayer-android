@@ -147,13 +147,13 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     @Override public int onReadEncodedData(byte[] buffer, int amountToWrite) {
     	if (!data.isSourceValid()) {
-    		//Log.d(TAG, "onReadEncodedData called, but source is invalid");
+    		Log.d(TAG, "onReadEncodedData called, but source is invalid");
     		return 0;
     	}
     	//Log.d(TAG, "onReadOpusData call: " + amountToWrite);
         //If the player is not playing or reading the header, return 0 to end the native decode method
         if (playerState.get() == PlayerStates.STOPPED) {
-        	//Log.d(TAG, "onReadEncodedData called, but we are stopped");
+        	Log.d(TAG, "onReadEncodedData called, but we are stopped");
             return 0;
         }
         
@@ -289,6 +289,8 @@ public class ImplDecodeFeed implements DecodeFeed {
         playerState.set(PlayerStates.STOPPED);
     }
 
+
+
     /**
      * Called when reading header is complete and we are ready to play the stream. decoding has started
      * @param sampleRate
@@ -342,6 +344,7 @@ public class ImplDecodeFeed implements DecodeFeed {
                     AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
             audioTrack.play();
         } catch (Exception ex) {
+            Log.e(TAG, "AudioTrack exception:" + ex.getMessage());
             return;
         }
        

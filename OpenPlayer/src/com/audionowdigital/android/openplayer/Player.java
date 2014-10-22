@@ -184,18 +184,23 @@ public class Player implements Runnable {
 
         if (decodeFeed.getDataSource()!=null && !decodeFeed.getDataSource().isSourceValid()) {
             // Invalid data source
+            Log.d(TAG, "Result: invalid data source");
             events.sendEvent(PlayerEvents.PLAYING_FAILED);
             return;
         }
-        Log.e(TAG, "Result: " + result);
+
         switch (result) {
             case DecodeFeed.SUCCESS:
-                Log.d(TAG, "Successfully finished decoding");
+                Log.d(TAG, "Result: Successfully finished decoding");
                 events.sendEvent(PlayerEvents.PLAYING_FINISHED);
                 break;
             case DecodeFeed.INVALID_HEADER:
                 events.sendEvent(PlayerEvents.PLAYING_FAILED);
-                Log.e(TAG, "Invalid header error received");
+                Log.e(TAG, "Result: Invalid header error received");
+                break;
+            case DecodeFeed.DECODE_ERROR:
+                events.sendEvent(PlayerEvents.PLAYING_FAILED);
+                Log.e(TAG, "Result: Finished decoding with error");
                 break;
         }
     }

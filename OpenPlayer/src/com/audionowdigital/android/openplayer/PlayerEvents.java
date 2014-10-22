@@ -46,7 +46,7 @@ public class PlayerEvents {
      * Progress indicator, sent out periodically when playing
      */
     public static final int TRACK_INFO = 1006;
-    
+
     /**
      * Handler for sending status updates
      */

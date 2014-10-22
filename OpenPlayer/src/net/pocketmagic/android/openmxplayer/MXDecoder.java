@@ -120,9 +120,6 @@ public class MXDecoder {
         
         // start decoding
         
-        // D/MXDecoder(4934): dequeueOutputBuffer returned -1
-        // E/SoftMP3(4934): mp3 decoder returned error 12
-
         final long kTimeOutUs = 10;
 
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
@@ -154,7 +151,6 @@ public class MXDecoder {
                     } else {
                         presentationTimeUs = extractor.getSampleTime();
                         final int percent =  (duration == 0)? 0 : (int) (100 * presentationTimeUs / duration);
-                        //if (events != null) handler.post(new Runnable() { @Override public void run() { events.onPlayUpdate(percent, presentationTimeUs / 1000, duration / 1000);  } });
                     }
    
                 	codec.queueInputBuffer(inputBufIndex, 0, sampleSize, presentationTimeUs, sawInputEOS ? MediaCodec.BUFFER_FLAG_END_OF_STREAM : 0);
@@ -187,8 +183,9 @@ public class MXDecoder {
                 	// we have PCM data and we also know exact position in the source: only for MX
                 	decodeFeed.onWritePCMData(shorts, shorts.length, (int) (extractor.getSampleTime() / 1000000));
                 }
-                //Log.e(TAG, "extractor time:" + extractor.getSampleTime());
+
                 codec.releaseOutputBuffer(outputBufIndex, false);
+
                 if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                     Log.d(TAG, "saw output EOS.");
                     sawOutputEOS = true;
@@ -205,9 +202,7 @@ public class MXDecoder {
         }
         
         Log.d(TAG, "stopping...");
-        //ByteBuffer[] codecInputBuffers  = codec.getInputBuffers();
-        //ByteBuffer[] codecOutputBuffers = codec.getOutputBuffers();
-      
+
         //codec.
         if(codec != null) {
         	Log.d(TAG, "Release codec");
@@ -216,26 +211,37 @@ public class MXDecoder {
 			codec.release();
 			codec = null;
 		}
-	    
+
+
         extractor.release();
-        
-	    // clear source and the other globals
-	    duration = 0;
-	    mime = null;
-	    sampleRate = 0; channels = 0; bitrate = 0;
-	    presentationTimeUs = 0; duration = 0;
-		
-	    
-        stop = true;
-        
-    	/*if(noOutputCounter >= noOutputCounterLimit) {
-    		if (events != null) handler.post(new Runnable() { @Override public void run() { events.onError();  } }); 
-	    } else {
-	    	if (events != null) handler.post(new Runnable() { @Override public void run() { events.onStop();  } }); 
-        }*/
-    	
-        //---------------------------
-		decodeFeed.onStop();
+
+
+	    stop = true;
+
+        // duration 0 for live stream
+
+        // for recording daemon's dance: duration:30834100 presentationTimeUs:30798367
+        Log.e(TAG, "duration:" + duration + " presentationTimeUs:" + presentationTimeUs );
+
+        // 1 sec tolerance
+        if(presentationTimeUs + 1000000 < duration) {
+            Log.d(TAG, "readDecodeWriteLoop stopped with error.");
+            err = DecodeFeed.DECODE_ERROR;
+            //decodeFeed.onError();
+        } else {
+            Log.d(TAG, "readDecodeWriteLoop stopped.");
+        }
+
+
+        // clear source and the other globals
+        duration = 0;
+        mime = null;
+        sampleRate = 0; channels = 0; bitrate = 0;
+        presentationTimeUs = 0; duration = 0;
+
+
+        decodeFeed.onStop();
+
 		return err;
 	}
 	
