@@ -182,9 +182,9 @@ public class Player implements Runnable {
         	break;
         }
 
-        if (decodeFeed.getDataSource()!=null && !decodeFeed.getDataSource().isSourceValid()) {
+        if (decodeFeed.getDataSource() != null && !decodeFeed.getDataSource().isSourceValid()) {
             // Invalid data source
-            Log.d(TAG, "Result: invalid data source");
+            Log.d(TAG, "Result: Invalid data source");
             events.sendEvent(PlayerEvents.PLAYING_FAILED);
             return;
         }
@@ -195,12 +195,12 @@ public class Player implements Runnable {
                 events.sendEvent(PlayerEvents.PLAYING_FINISHED);
                 break;
             case DecodeFeed.INVALID_HEADER:
-                events.sendEvent(PlayerEvents.PLAYING_FAILED);
                 Log.e(TAG, "Result: Invalid header error received");
+                events.sendEvent(PlayerEvents.PLAYING_FAILED);
                 break;
             case DecodeFeed.DECODE_ERROR:
-                events.sendEvent(PlayerEvents.PLAYING_FAILED);
                 Log.e(TAG, "Result: Finished decoding with error");
+                events.sendEvent(PlayerEvents.PLAYING_FAILED);
                 break;
         }
     }

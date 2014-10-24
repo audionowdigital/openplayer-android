@@ -41,8 +41,11 @@ public class DataSource  {
 	private long length = -1, readoffset = -1;
 	
 	private InputStream getRemote(String url, long offset) {
+        Log.d(TAG, "getRemote:" + url);
+
 		try {
 			URLConnection cn = new URL( url ).openConnection();
+            cn.setConnectTimeout(5000);
 			cn.setRequestProperty ("Range", "bytes="+offset+"-");
 			/* iOS implementtion:
 			 NSString * str = [NSString stringWithFormat:@"GET %@ HTTP/1.0\r\nHost: %@\r\nRange: bytes=%ld-\r\n\r\n",
@@ -197,6 +200,7 @@ public class DataSource  {
 			}
 		}
 		
-		return DATA_SRC_INVALID;
+		//return DATA_SRC_INVALID;
+        return 0; // return result not used
 	}
 }
