@@ -8,12 +8,12 @@
 
 package com.audionowdigital.android.openplayer;
 
-import com.audionowdigital.android.openplayer.Player.DecoderType;
-
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.util.Log;
+
+import com.audionowdigital.android.openplayer.Player.DecoderType;
 
 /**
  * Created by radhoo on /14.
@@ -42,20 +42,16 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     protected DataSource data;
     protected long streamSecondsLength;
-    
 
     /**
      * The amount of written pcm data to the audio track
      */
     protected long writtenPCMData = 0;
-    
-    
+
     /**
      * Track seconds or for how many seconds have we been playing
      */
     protected long writtenMiliSeconds = 0;
-    
-
 
     /**
      * Stream info as reported in the header 
@@ -63,6 +59,11 @@ public class ImplDecodeFeed implements DecodeFeed {
     DecodeStreamInfo streamInfo;
     
 	private DecoderType type;
+
+    public static final int    ERR_SUCCESS = 0,
+                                ERR_DATASOURCE = -1,
+                                ERR_AUDIO = -2;
+    private int lastError  = ERR_SUCCESS;
     
     /**
      * Go a different dataSource route for MX decoder
@@ -79,7 +80,12 @@ public class ImplDecodeFeed implements DecodeFeed {
         this.events = events;
         this.type = type;
         //this.type = type;
+        lastError = ERR_SUCCESS;
 	}
+
+    public int getLastError() {
+        return lastError;
+    }
 
     /**
      * Polls the current stream playing position in seconds
@@ -96,6 +102,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      */
     public void setData(String path, long streamSecondsLength) {
     	if (path == null) {
+            lastError = ERR_DATASOURCE;
             throw new IllegalArgumentException("Path to decode must not be null.");
         }
         this.streamSecondsLength = streamSecondsLength;
@@ -108,6 +115,8 @@ public class ImplDecodeFeed implements DecodeFeed {
         Log.d(TAG, "Creating a new data source obj");
         data = new DataSource(path);
 
+        if (!data.isSourceValid())
+            lastError = ERR_DATASOURCE;
         /*}
           if (streamSize > 0) {
             this.inputStream.markSupported();
@@ -148,7 +157,7 @@ public class ImplDecodeFeed implements DecodeFeed {
     @Override public int onReadEncodedData(byte[] buffer, int amountToWrite) {
     	if (!data.isSourceValid()) {
     		Log.d(TAG, "onReadEncodedData called, but source is invalid");
-    		return 0;
+           	return 0;
     	}
     	//Log.d(TAG, "onReadOpusData call: " + amountToWrite);
         //If the player is not playing or reading the header, return 0 to end the native decode method
@@ -156,7 +165,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         	Log.d(TAG, "onReadEncodedData called, but we are stopped");
             return 0;
         }
-        
+
         waitPlay();
         
         if (buffer == null) return 0;
@@ -164,11 +173,14 @@ public class ImplDecodeFeed implements DecodeFeed {
         //Otherwise read from the file
         try {
             int read = data.read(buffer, 0, amountToWrite);
-            
+
+            if (read == -1) lastError = ERR_DATASOURCE;
+
             return read == -1 ? 0 : read;
         } catch (Exception e) {
             //There was a problem reading from the file
-            Log.e(TAG, "Failed to read encoded data from file.  Aborting.", e);
+            Log.e(TAG, "Failed to read encoded data from file, abort. Total:" + streamSecondsLength + " written:" + writtenMiliSeconds, e);
+            lastError = ERR_DATASOURCE;
             return 0;
         }
     }
@@ -200,6 +212,7 @@ public class ImplDecodeFeed implements DecodeFeed {
                         "new_sec:"+ writtenMiliSeconds + " Min:"+ (writtenMiliSeconds / 60000) + ":"+((writtenMiliSeconds/1000)%60) );
 
             } catch (OutOfMemoryError e) {
+                lastError = ERR_DATASOURCE;
             	e.printStackTrace();
             }
         }
@@ -271,16 +284,17 @@ public class ImplDecodeFeed implements DecodeFeed {
     @Override
     public synchronized void onStop() {
         if (!playerState.isStopped()) {
-        	writtenPCMData = 0;
-            writtenMiliSeconds = 0;
-            //Closes the file input stream
+        	//Closes the file input stream
             
             if (data.isSourceValid()) {
-            	Log.d(TAG, "onStop called with valid data source");
+            	Log.d(TAG, "onStop called with valid data source total:" + streamSecondsLength + " written:" + writtenMiliSeconds);
             	data.release();
             } else
         	Log.e(TAG, "onStop invalid data source");
-            
+
+            writtenPCMData = 0;
+            writtenMiliSeconds = 0;
+
             Log.d(TAG, "decoding complete");
             
             stopAudioTrack();
@@ -322,8 +336,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         if (decodeStreamInfo.getSampleRate() <= 0) {
             throw new IllegalArgumentException("Invalid sample rate, must be above 0");
         }
-        // TODO: finish initing
-        Log.d(TAG, "onStart call ok (Vendor:" + decodeStreamInfo.getVendor() + ") Track parameters: Title:"+ decodeStreamInfo.getTitle() + " Artist:"+decodeStreamInfo.getArtist() + 
+        Log.d(TAG, "onStart call ok (Vendor:" + decodeStreamInfo.getVendor() + ") Track parameters: Title:"+ decodeStreamInfo.getTitle() + " Artist:"+decodeStreamInfo.getArtist() +
         		" Album:" + decodeStreamInfo.getAlbum() + " Date:" + decodeStreamInfo.getDate() + " Track:" + decodeStreamInfo.getTrack());
 
         streamInfo = decodeStreamInfo;
@@ -345,6 +358,7 @@ public class ImplDecodeFeed implements DecodeFeed {
             audioTrack.play();
         } catch (Exception ex) {
             Log.e(TAG, "AudioTrack exception:" + ex.getMessage());
+            lastError = ERR_AUDIO;
             return;
         }
        

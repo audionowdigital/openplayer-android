@@ -182,24 +182,33 @@ public class Player implements Runnable {
         	break;
         }
 
-        if (decodeFeed.getDataSource() != null && !decodeFeed.getDataSource().isSourceValid()) {
+        // Radu: why did I add the following code in the first place? Can't remember:
+        // it was used mainly to signal exceptions from the inputstream
+        /*if (decodeFeed.getDataSource() != null && !decodeFeed.getDataSource().isSourceValid()) {
             // Invalid data source
             Log.d(TAG, "Result: Invalid data source");
             events.sendEvent(PlayerEvents.PLAYING_FAILED);
             return;
+        }*/
+        // check for unexpected end:
+        if (decodeFeed.getLastError() != decodeFeed.ERR_SUCCESS) {
+            Log.d(TAG, "Result: Ended unexpectedly:" + decodeFeed.getLastError());
+            events.sendEvent(PlayerEvents.PLAYING_FAILED);
+            return;
         }
+
 
         switch (result) {
             case DecodeFeed.SUCCESS:
-                Log.d(TAG, "Result: Successfully finished decoding");
+                Log.d(TAG, "Result: Normal: Successfully finished decoding");
                 events.sendEvent(PlayerEvents.PLAYING_FINISHED);
                 break;
             case DecodeFeed.INVALID_HEADER:
-                Log.e(TAG, "Result: Invalid header error received");
+                Log.e(TAG, "Result: Normal: Invalid header error received");
                 events.sendEvent(PlayerEvents.PLAYING_FAILED);
                 break;
             case DecodeFeed.DECODE_ERROR:
-                Log.e(TAG, "Result: Finished decoding with error");
+                Log.e(TAG, "Result: Normal: Finished decoding with error");
                 events.sendEvent(PlayerEvents.PLAYING_FAILED);
                 break;
         }
