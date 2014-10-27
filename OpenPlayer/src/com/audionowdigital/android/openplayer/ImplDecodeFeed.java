@@ -101,6 +101,8 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @param streamSecondsLength the total size in seconds of this stream or -1 if not available (live streams)
      */
     public void setData(String path, long streamSecondsLength) {
+        lastError = ERR_SUCCESS;
+
     	if (path == null) {
             lastError = ERR_DATASOURCE;
             throw new IllegalArgumentException("Path to decode must not be null.");
@@ -174,9 +176,18 @@ public class ImplDecodeFeed implements DecodeFeed {
         try {
             int read = data.read(buffer, 0, amountToWrite);
 
-            if (read == -1) lastError = ERR_DATASOURCE;
 
-            return read == -1 ? 0 : read;
+            if (read == -1) {
+                Log.d(TAG, "Data read exception");
+                lastError = ERR_DATASOURCE;
+            }
+
+            if (read == -2) {
+                // end of stream reached, but no error
+                Log.d(TAG, "Data read end of stream");
+            }
+
+            return (read <= 0)? 0 : read;
         } catch (Exception e) {
             //There was a problem reading from the file
             Log.e(TAG, "Failed to read encoded data from file, abort. Total:" + streamSecondsLength + " written:" + writtenMiliSeconds, e);
