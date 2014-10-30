@@ -1,5 +1,12 @@
-#include "DecodeFeed.h"
+/*
+ * DecodeFeed.c
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
 
+#include "DecodeFeed.h"
 
 //Stops the vorbis data feed
 void onStop(JNIEnv *env, jobject* javaDecodeFeedObj, jmethodID* stopMethodId) {
@@ -39,7 +46,7 @@ void onWritePCMData(JNIEnv *env, jobject* javaDecodeFeedObj, jmethodID* writePCM
     (*env)->SetShortArrayRegion(env, (*jShortArrayWriteBuffer), 0, bytes, (jshort *)buffer);
 
     //Call the write pcm data method
-    (*env)->CallVoidMethod(env, (*javaDecodeFeedObj), (*writePCMDataMethodId), (*jShortArrayWriteBuffer), bytes);
+    (*env)->CallVoidMethod(env, (*javaDecodeFeedObj), (*writePCMDataMethodId), (*jShortArrayWriteBuffer), bytes, -1);
 }
 
 //Starts the decode feed with the necessary information about sample rates, channels, etc about the stream

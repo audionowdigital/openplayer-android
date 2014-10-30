@@ -1,6 +1,11 @@
-/* Takes a vorbis bitstream from java callbacks from JNI and writes raw stereo PCM to
-the jni callbacks. Decodes simple and chained OggVorbis files from beginning
-to end. */
+/*
+ * org_xiph_vorbis_decoderjni_VorbisDecoder.c
+ * Takes a vorbis bitstream from java callbacks from JNI and writes raw stereo PCM to the jni callbacks. Decodes simple and chained OggOpus files from beginning to end.
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
 
 #include "org_xiph_vorbis_decoderjni_VorbisDecoder.h"
 #include "../decodefeed/Log.h"
@@ -50,10 +55,10 @@ JNIEXPORT int JNICALL Java_org_xiph_vorbis_decoderjni_VorbisDecoder_readDecodeWr
 //	jclass javaDecodeFeedObjClass = (*env)->FindClass(env, "org/xiph/vorbis/decoderjni/DecodeFeed");
 	jclass javaDecodeFeedObjClass = (*env)->FindClass(env, "com/audionowdigital/android/openplayer/DecodeFeed");
 
-
+	// type signatures are presented here: http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/types.html
 	//Find our java method id's we'll be calling
 	jmethodID readDataMethodId = (*env)->GetMethodID(env, javaDecodeFeedObjClass, "onReadEncodedData", "([BI)I");
-	jmethodID writePCMDataMethodId = (*env)->GetMethodID(env, javaDecodeFeedObjClass, "onWritePCMData", "([SI)V");
+	jmethodID writePCMDataMethodId = (*env)->GetMethodID(env, javaDecodeFeedObjClass, "onWritePCMData", "([SII)V");
 	jmethodID startMethodId = (*env)->GetMethodID(env, javaDecodeFeedObjClass, "onStart", "(JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
 	jmethodID startReadingHeaderMethodId = (*env)->GetMethodID(env, javaDecodeFeedObjClass, "onStartReadingHeader", "()V");
 	jmethodID stopMethodId = (*env)->GetMethodID(env, javaDecodeFeedObjClass, "onStop", "()V");

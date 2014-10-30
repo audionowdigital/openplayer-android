@@ -1,26 +1,37 @@
+/*
+ * Player.java - The Player is responsible for decoding a bitstream into raw PCM data to play to an {@link AudioTrack}
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 package com.audionowdigital.android.openplayer;
 
-import android.media.AudioTrack;
 import android.os.Handler;
 import android.os.Process;
 import android.util.Log;
+
+import net.pocketmagic.android.openmxplayer.MXDecoder;
 
 import org.xiph.opus.decoderjni.OpusDecoder;
 import org.xiph.vorbis.decoderjni.VorbisDecoder;
 
 /**
- * The OpusPlayer is responsible for decoding a opus bitstream into raw PCM data to play to an {@link AudioTrack}
+ * Created by radhoo on /14.
  */
+
 public class Player implements Runnable {
 
 	public enum DecoderType {
 		OPUS,
 		VORBIS,
+		MX,
 		UNKNOWN
 	};
-
+	
 	DecoderType type = DecoderType.UNKNOWN;
-
+	
     /**
      * Logging tag
      */
@@ -35,7 +46,7 @@ public class Player implements Runnable {
      * Current state of the player
      */
     private PlayerStates playerState = new PlayerStates();
-
+    
     /**
      * The player events used to inform a client
      */
@@ -49,18 +60,23 @@ public class Player implements Runnable {
          }
     	 this.type = type;
     	 events = new PlayerEvents(handler);
-    	 this.decodeFeed = new ImplDecodeFeed(playerState, events);
-
+    	 this.decodeFeed = new ImplDecodeFeed(playerState, events, type);
+    	 
+    	 
     	 // pass the DecodeFeed interface to the native JNI layer, we will get all calls there
     	 Log.d(TAG,"Player constructor, type:"+type);
     	/* switch (type) {
     	 case DecoderType.OPUS: 
     	 }*/
-    	 Log.e(TAG, "preparing ot init");
-    	 if (type == DecoderType.OPUS)
-    		 OpusDecoder.initJni(1);
-    	 else
-    		 VorbisDecoder.initJni(1);
+    	 Log.e(TAG, "preparing to init:"+type);
+    	 switch (type) {
+    		 case OPUS: OpusDecoder.initJni(1); break;
+    		 case VORBIS: VorbisDecoder.initJni(1); break;
+    		 case MX: MXDecoder.init(1); break;
+		default:
+			break;
+    	 }
+    	  
     }
 
     public void stopAudioTrack(){
@@ -104,13 +120,13 @@ public class Player implements Runnable {
             return;
         }
     	if (playerState.get() != PlayerStates.READY_TO_PLAY) {
-            throw new IllegalStateException("Must be ready first!");
+            throw new IllegalStateException("Must be ready first!");    		
         }
     	playerState.set(PlayerStates.PLAYING);
     	// make sure the thread gets unlocked
     	decodeFeed.syncNotify();
     }
-
+    
     public void pause() {
         if (playerState.get() == PlayerStates.READING_HEADER){
             stop();
@@ -130,52 +146,72 @@ public class Player implements Runnable {
     	// make sure the thread gets locked
     	decodeFeed.syncNotify();
     }
-
+    
     /**
      * Stops the player and notifies the decode feed
      */
     public synchronized void stop() {
-        decodeFeed.onStop();
+    	if (type == DecoderType.MX)
+    		MXDecoder.stop();
+    	
+    	decodeFeed.onStop();
         // make sure the thread gets unlocked
-    	//decodeFeed.syncNotify();
+    	decodeFeed.syncNotify();
     }
-
+    
 
     @Override
     public void run() {
     	Log.e(TAG, "Start the native decoder");
-
+        
         android.os.Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
-
-        int result;
-        if (type == DecoderType.OPUS) {
-        	Log.e(TAG, "call opus readwrite loop");
-        	result = OpusDecoder.readDecodeWriteLoop(decodeFeed);
+        
+        int result = 0;
+        switch (type) {
+        	case OPUS:
+        		Log.e(TAG, "call opus readwrite loop");
+        		result = OpusDecoder.readDecodeWriteLoop(decodeFeed);
+        	break;
+        	case VORBIS:
+        		Log.e(TAG, "call vorbis readwrite loop");
+        		result = VorbisDecoder.readDecodeWriteLoop(decodeFeed);
+        	break;
+        	case MX:
+        		Log.e(TAG, "call mx readwrite loop");
+        		result = MXDecoder.readDecodeWriteLoop(decodeFeed);
+        	break;
         }
-        else {
-        	Log.e(TAG, "call vorbis readwrite loop");
-        	result = VorbisDecoder.readDecodeWriteLoop(decodeFeed);
-        }
 
-        if (decodeFeed.getDataSource()!=null && !decodeFeed.getDataSource().isSourceValid() && !(decodeFeed.getDataSource().getReadOffset() > 0)) {
+        // Radu: why did I add the following code in the first place? Can't remember:
+        // it was used mainly to signal exceptions from the inputstream
+        /*if (decodeFeed.getDataSource() != null && !decodeFeed.getDataSource().isSourceValid()) {
             // Invalid data source
+            Log.d(TAG, "Result: Invalid data source");
+            events.sendEvent(PlayerEvents.PLAYING_FAILED);
+            return;
+        }*/
+        // check for unexpected end:
+        if (decodeFeed.getLastError() != decodeFeed.ERR_SUCCESS) {
+            Log.d(TAG, "Result: Ended unexpectedly:" + decodeFeed.getLastError());
             events.sendEvent(PlayerEvents.PLAYING_FAILED);
             return;
         }
 
-        Log.e(TAG, "Result: " + result);
+
         switch (result) {
             case DecodeFeed.SUCCESS:
-                Log.d(TAG, "Successfully finished decoding");
+                Log.d(TAG, "Result: Normal: Successfully finished decoding");
                 events.sendEvent(PlayerEvents.PLAYING_FINISHED);
                 break;
             case DecodeFeed.INVALID_HEADER:
+                Log.e(TAG, "Result: Normal: Invalid header error received");
                 events.sendEvent(PlayerEvents.PLAYING_FAILED);
-                Log.e(TAG, "Invalid header error received");
+                break;
+            case DecodeFeed.DECODE_ERROR:
+                Log.e(TAG, "Result: Normal: Finished decoding with error");
+                events.sendEvent(PlayerEvents.PLAYING_FAILED);
                 break;
         }
-
-
     }
 
     /**
@@ -195,7 +231,7 @@ public class Player implements Runnable {
     public synchronized boolean isReadyToPlay() {
         return playerState.isReadyToPlay();
     }
-
+    
     /**
      * Checks whether the player is currently stopped (not playing)
      *
@@ -220,11 +256,14 @@ public class Player implements Runnable {
      * @param percentage - position where to seek
      */
     public synchronized void setPosition(int percentage) {
-        decodeFeed.setPosition(percentage);
+    	if (type == DecoderType.MX)
+    		MXDecoder.setPositionSec((int) (percentage * getDuration() / 100));
+    	else
+    		decodeFeed.setPosition(percentage);
     }
-
+    
     /**
-     *
+     * 
      * @return returns the player position in track in seconds
      */
     public int getCurrentPosition(){

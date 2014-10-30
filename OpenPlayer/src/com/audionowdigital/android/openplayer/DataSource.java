@@ -1,7 +1,14 @@
+/*
+ * DataSource.java -- data source handler for both local and online content
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 package com.audionowdigital.android.openplayer;
 
 import android.util.Log;
-
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,13 +19,18 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 
+/**
+ * Created by radhoo on /14.
+ */
+
 public class DataSource  {
 
 	/**
 	 * The debug tag
 	 */
 	private String TAG = "DataSource";
-	
+
+    private final static int DATA_SRC_FINISHED = -2;
 	private final static int DATA_SRC_INVALID = -1;
 	private final static int DATA_SRC_LOCAL = 0;
 	private final static int DATA_SRC_REMOTE = 1;
@@ -30,8 +42,11 @@ public class DataSource  {
 	private long length = -1, readoffset = -1;
 	
 	private InputStream getRemote(String url, long offset) {
+        Log.d(TAG, "getRemote:" + url);
+
 		try {
 			URLConnection cn = new URL( url ).openConnection();
+            cn.setConnectTimeout(5000);
 			cn.setRequestProperty ("Range", "bytes="+offset+"-");
 			/* iOS implementtion:
 			 NSString * str = [NSString stringWithFormat:@"GET %@ HTTP/1.0\r\nHost: %@\r\nRange: bytes=%ld-\r\n\r\n",
@@ -136,14 +151,31 @@ public class DataSource  {
 	public synchronized int read(byte buffer[], int byteOffset, int byteCount) {
 		try {
 			if (dataSource != DATA_SRC_INVALID) {
+                // Reads up to byteCount bytes from this stream and stores them in the byte array buffer starting at byteOffset.
+                // Returns the number of bytes actually read or -1 if the end of the stream has been reached.
+                // if the stream is closed or another IOException occurs.
 				int bytes = inputStream.read(buffer, byteOffset, byteCount);
 				if (bytes > 0) readoffset += bytes;
-                //Log.d(TAG, "readoffset:" + readoffset);
-				return bytes;
+                //Log.d(TAG, "readoffset:" + readoffset)
+                if (bytes == -1)
+                    return DATA_SRC_FINISHED;
+                else
+				    return bytes;
 			}
-		} catch (IOException e) { e.printStackTrace(); }
+		} catch (IOException e) {
+            Log.d(TAG, "InputStream exception:" + e.getMessage());
+            e.printStackTrace();
+        }
 	
 		return DATA_SRC_INVALID;	
+	}
+	
+	public InputStream getInputStream() {
+		return inputStream;
+	}
+	
+	public String getPath() {
+		return dataPath;
 	}
 	
 	public synchronized int skip(long offset) {
@@ -152,8 +184,17 @@ public class DataSource  {
 		
 		if (dataSource == DATA_SRC_LOCAL) {
 			try {
-				inputStream.reset(); // will reset to mark: TODO: test if memory is ok on local big files
-				long skip = inputStream.skip(offset);
+			    int retry = 10;
+                long skip = 0;
+                // enforce skip to correct position for local inputstreams
+                do {
+                    inputStream.reset(); // will reset to mark: TODO: test if memory is ok on local big files
+
+                    skip = inputStream.skip(offset);
+                    retry --;
+                    Log.e("SKIP", "res skip:" + skip + " retry:" + retry);
+                } while (Math.abs(skip - offset) > 4096 && retry > 0);
+
                 readoffset = offset;
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -169,6 +210,7 @@ public class DataSource  {
 			}
 		}
 		
-		return DATA_SRC_INVALID;
+		//return DATA_SRC_INVALID;
+        return 0; // return result not used
 	}
 }

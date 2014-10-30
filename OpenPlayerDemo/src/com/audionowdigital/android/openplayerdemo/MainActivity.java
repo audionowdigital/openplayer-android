@@ -34,7 +34,11 @@ import android.widget.TextView;
 // This activity demonstrates how to use JNI to encode and decode ogg/vorbis audio
 public class MainActivity extends Activity {
  
-	Player.DecoderType type = DecoderType.OPUS;
+	/*
+	 * DEFINE PLAYER TYPE
+	 */
+	Player.DecoderType type = DecoderType.MX;
+	
 	private static final String TAG = "MainActivity ";
 	/*
 	http://icecast1.pulsradio.com:80/mxHD.ogg
@@ -57,6 +61,8 @@ public class MainActivity extends Activity {
     private TextView logArea;
     private SeekBar seekBar;
     
+    private int LENGTH = 0;
+    
     private int DEBUG_PODCAST_LENGTH = 200;
     // Creates and sets our activities layout
     @Override public void onCreate(Bundle savedInstanceState) {
@@ -69,7 +75,7 @@ public class MainActivity extends Activity {
         
         scrollView.addView(panelV);
         logArea = new TextView(this);
-        logArea.setText("Welcome to OPENPlayer v 1.0.108  Press Init->Play");
+        logArea.setText("Welcome to OPENPlayer v 1.0.110  Press Init->Play");
         panelV.addView(logArea);
         
         Button b = new Button(this);
@@ -77,23 +83,26 @@ public class MainActivity extends Activity {
         b.setOnClickListener(new OnClickListener() {
 			@Override public void onClick(View arg0) {
 				logArea.setText("");
-				player.setDataSource(
-						type == Player.DecoderType.VORBIS?"/sdcard/countdown.ogg":"/sdcard/countdown.opus",
-                        11
-						);//test-katie.ogg");
+				switch (type) {
+					case VORBIS: player.setDataSource("/sdcard/countdown.ogg", 11); break;
+					case OPUS: player.setDataSource("/sdcard/countdown.opus", 11); break;
+					case MX: player.setDataSource("/sdcard/countdown.mp3", 11); break;
+				}
+			
 		    }
 		});
         panelV.addView(b);
         
         final EditText et = new EditText(this);
         et.setTextSize(10);
-        if (type == Player.DecoderType.VORBIS)
-        	et.setText("http://icecast1.pulsradio.com:80/mxHD.ogg");
-        else {
-        	//et.setText("http://ai-radio.org:8000/radio.opus");
-        	//et.setText("http://ice01.va.audionow.com/audiocast/caraibes/ranmasse.ogg");
-        	//et.setText("http://www.markosoft.ro/opus/02_Archangel.opus");
-        	et.setText("http://www.markosoft.ro/opus/04_The_Day_That_Never_Comes.opus");
+
+        switch (type) {
+        	case VORBIS: //et.setText("http://icecast1.pulsradio.com:80/mxHD.ogg"); LENGTH = -1; break;
+        		et.setText("http://markosoft.ro/test.ogg"); LENGTH = 215; break;
+        	case OPUS: et.setText("http://www.markosoft.ro/opus/02_Archangel.opus"); LENGTH = 154; break;
+        	case MX: 
+        		et.setText("http://stream.rfi.fr/rfimonde/all/rfimonde-64k.mp3"); LENGTH = -1; break;
+        		//et.setText("http://www.pocketmagic.net/tmp3/demondance.mp3"); LENGTH = 30; break; // 30sec
         }
         
         panelV.addView(et);
@@ -106,7 +115,7 @@ public class MainActivity extends Activity {
 				Log.d(TAG, "Set source:" + et.getEditableText().toString());
 				//InputStream urlStrem = getStreamURL(et.getEditableText().toString());
 				//player.setDataSource(et.getEditableText().toString(), 17169);
-				player.setDataSource(et.getEditableText().toString(), 154);
+				player.setDataSource(et.getEditableText().toString(), LENGTH);
 		    }
 		});
         panelV.addView(b);
@@ -158,7 +167,7 @@ public class MainActivity extends Activity {
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
             	if (b) {
-            		Log.d("SEEK", i+""); player.setPosition(i);
+            		Log.d(TAG, "Seek:"+i+""); player.setPosition(i);
             	}
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}

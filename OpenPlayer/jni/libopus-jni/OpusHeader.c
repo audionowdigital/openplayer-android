@@ -1,12 +1,14 @@
+/*
+ * OpusHeader.c
+ * Process an Opus header and setup the opus decoder based on it. It takes several pointers for header values which are needed elsewhere in the code.
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 #include "OpusHeader.h"
 
-
-
-
-
-/*Process an Opus header and setup the opus decoder based on it.
-  It takes several pointers for header values which are needed
-  elsewhere in the code.*/
  OpusDecoder *process_header(ogg_packet *op, int *rate, int *channels, int *preskip, int quiet) {
 	int err;
 	OpusDecoder *st;

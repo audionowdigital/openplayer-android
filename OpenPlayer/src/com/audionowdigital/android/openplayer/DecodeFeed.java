@@ -1,8 +1,17 @@
+/*
+ * DecodeFeed.java - A feed interface which raw PCM data will be written to and encoded  data will be read from
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 package com.audionowdigital.android.openplayer;
 
 /**
- * A feed interface which raw PCM data will be written to and encoded  data will be read from
+ * Created by radhoo on /14.
  */
+
 public interface DecodeFeed {
     /**
      * Everything was a success
@@ -33,13 +42,19 @@ public interface DecodeFeed {
      *
      * @param pcmData      the raw pcm data
      * @param amountToRead the amount available to read in the buffer
+     * @param currentSeconds if progress is known (MX decoder), we will push it here, else -1
      */
-    public void onWritePCMData(short[] pcmData, int amountToRead);
+    public void onWritePCMData(short[] pcmData, int amountToRead, int currentSeconds);
 
     /**
      * To be called when decoding has completed
      */
     public void onStop();
+
+    /**
+     * To be called when decoding has encountered an error
+     */
+    //§public void onError();
 
     /**
      * Puts the decode feed in the reading header state
@@ -59,5 +74,7 @@ public interface DecodeFeed {
      * @param percent - percentage where to seek
      */
     public void setPosition(int percent);
+    
+    public DataSource getDataSource();
 
 }

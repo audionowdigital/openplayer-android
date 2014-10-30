@@ -1,9 +1,20 @@
+/*
+ * PlayerEvents.java - a class that defines the events sent to the OpenPlayer client
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 package com.audionowdigital.android.openplayer;
 
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 
+/**
+ * Created by radhoo on /14.
+ */
 
 public class PlayerEvents {
     /**
@@ -35,7 +46,7 @@ public class PlayerEvents {
      * Progress indicator, sent out periodically when playing
      */
     public static final int TRACK_INFO = 1006;
-    
+
     /**
      * Handler for sending status updates
      */

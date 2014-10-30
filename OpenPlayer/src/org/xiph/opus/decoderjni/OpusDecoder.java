@@ -1,10 +1,19 @@
+/*
+ * OpusDecoder.java - The native opus decoder to be used in conjunction with JNI
+ *
+ * (C) 2014 Radu Motisan, radu.motisan@gmail.com
+ *
+ * Part of the OpenPlayer implementation for Alpine Audio Now Digital LLC
+ */
+
 package org.xiph.opus.decoderjni;
 
 import com.audionowdigital.android.openplayer.DecodeFeed;
 
 /**
- * The native vorbis decoder to be used in conjunction with JNI
+ * Created by radhoo on /14.
  */
+
 public class OpusDecoder {
 
     /**
