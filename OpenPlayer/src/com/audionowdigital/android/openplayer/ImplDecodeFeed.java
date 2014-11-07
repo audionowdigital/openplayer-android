@@ -213,7 +213,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         long seekPosition = percent * data.getSourceLength() / 100;
         if (data.isSourceValid()) {
             try {
-                audioTrack.flush();
+                if (audioTrack != null) audioTrack.flush();
                 //inputStream.reset();
                 //data.seekTo()
                 data.skip(seekPosition);
