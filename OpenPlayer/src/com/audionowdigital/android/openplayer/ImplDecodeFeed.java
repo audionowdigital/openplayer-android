@@ -157,7 +157,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @return the amount actually written
      */
     @Override public int onReadEncodedData(byte[] buffer, int amountToWrite) {
-    	if (!data.isSourceValid()) {
+        if ((data == null) || !data.isSourceValid()) {
     		Log.d(TAG, "onReadEncodedData called, but source is invalid");
            	return 0;
     	}
