@@ -8,6 +8,8 @@
 
 package org.xiph.opus.decoderjni;
 
+import android.util.Log;
+
 import com.audionowdigital.android.openplayer.DecodeFeed;
 
 /**
@@ -20,11 +22,15 @@ public class OpusDecoder {
      * Load our -jni library and other dependent libraries
      */
     static {
+    	//Log.e("test", "1");
         System.loadLibrary("ogg");
+        //Log.e("test", "2");
         System.loadLibrary("opus");
-        System.loadLibrary("opus-jni");
+        //Log.e("test", "3");
+        System.loadLibrary("opus-jni"); //dlopen failed: cannot locate symbol "opus_header_parse" referenced by "libopus-jni.so"...
+        //Log.e("test", "4");
     }
-    
+
     /**
      * Init the JNI layer
      * @param debug set to true to enable debug

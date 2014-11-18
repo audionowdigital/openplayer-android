@@ -31,7 +31,7 @@ int debug = 0;
 
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
   LOGD(LOG_TAG, "onLoad called.");
-	return JNI_VERSION_1_6;
+   return JNI_VERSION_1_6;
 }
 
 

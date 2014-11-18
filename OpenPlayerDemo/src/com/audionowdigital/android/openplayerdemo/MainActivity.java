@@ -37,7 +37,7 @@ public class MainActivity extends Activity {
 	/*
 	 * DEFINE PLAYER TYPE
 	 */
-	Player.DecoderType type = DecoderType.MX;
+	Player.DecoderType type = DecoderType.OPUS;
 	
 	private static final String TAG = "MainActivity ";
 	/*
