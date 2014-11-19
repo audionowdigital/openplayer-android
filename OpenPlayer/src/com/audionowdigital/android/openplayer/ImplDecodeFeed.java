@@ -157,7 +157,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      * @return the amount actually written
      */
     @Override public int onReadEncodedData(byte[] buffer, int amountToWrite) {
-    	if (!data.isSourceValid()) {
+        if ((data == null) || !data.isSourceValid()) {
     		Log.d(TAG, "onReadEncodedData called, but source is invalid");
            	return 0;
     	}
@@ -213,7 +213,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         long seekPosition = percent * data.getSourceLength() / 100;
         if (data.isSourceValid()) {
             try {
-                audioTrack.flush();
+                if (audioTrack != null) audioTrack.flush();
                 //inputStream.reset();
                 //data.seekTo()
                 data.skip(seekPosition);
@@ -222,7 +222,7 @@ public class ImplDecodeFeed implements DecodeFeed {
                 Log.d(TAG,"SKIP_POS  percent:" + percent + " new_offset:" + seekPosition + " orig_source_len:" +  data.getSourceLength()+
                         "new_sec:"+ writtenMiliSeconds + " Min:"+ (writtenMiliSeconds / 60000) + ":"+((writtenMiliSeconds/1000)%60) );
 
-            } catch (OutOfMemoryError e) {
+            } catch (Exception e) {
                 lastError = ERR_DATASOURCE;
             	e.printStackTrace();
             }
@@ -235,7 +235,7 @@ public class ImplDecodeFeed implements DecodeFeed {
      *
      * @param pcmData      the raw pcm data
      * @param amountToRead the amount available to read in the buffer and dump it to our PCM buffers
-     * @param currentSecond if progress is known (MX decoder), we will push it here, else -1
+     * @param currentSeconds if progress is known (MX decoder), we will push it here, else -1
      */
     @Override
     public void onWritePCMData(short[] pcmData, int amountToRead, int currentSeconds) {
