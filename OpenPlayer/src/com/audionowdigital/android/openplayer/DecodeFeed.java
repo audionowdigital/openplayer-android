@@ -77,4 +77,6 @@ public interface DecodeFeed {
     
     public DataSource getDataSource();
 
+    public void setDecodeFeedListener(DecodeFeedListener listener);
+
 }
