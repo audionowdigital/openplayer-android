@@ -57,8 +57,10 @@ public class ImplDecodeFeed implements DecodeFeed {
      * Stream info as reported in the header 
      */
     DecodeStreamInfo streamInfo;
-    
-	private DecoderType type;
+
+    protected DecodeFeedListener decodeFeedListener;
+
+    private DecoderType type;
 
     public static final int    ERR_SUCCESS = 0,
                                 ERR_DATASOURCE = -1,
@@ -250,7 +252,11 @@ public class ImplDecodeFeed implements DecodeFeed {
 	            // count data
 	            writtenPCMData += amountToRead;
 	            writtenMiliSeconds += convertBytesToMs(amountToRead);
-	
+
+                if (decodeFeedListener!=null) {
+                    decodeFeedListener.onReadFeedData(pcmData, amountToRead);
+                }
+
 	            /*
 	             * The idea here is we are loosing some seconds when the packages can't be decoded (on seek, when jumping in the middle of a package), so the overall time count is behind the real position
 	             * So when we know the time size of a stream, we can simply keep count of the bytes read form the source, and compute the time position proportionally
@@ -449,4 +455,11 @@ public class ImplDecodeFeed implements DecodeFeed {
     public DataSource getDataSource() {
         return data;
     }
+
+
+    @Override
+    public void setDecodeFeedListener(DecodeFeedListener listener) {
+        this.decodeFeedListener = listener;
+    }
+
 }

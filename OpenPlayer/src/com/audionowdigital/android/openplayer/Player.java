@@ -270,4 +270,8 @@ public class Player implements Runnable {
         return decodeFeed.getCurrentPosition();
     }
 
+    public void setDecodeFeedListener(DecodeFeedListener listener) {
+        decodeFeed.setDecodeFeedListener(listener);
+    }
+
 }
