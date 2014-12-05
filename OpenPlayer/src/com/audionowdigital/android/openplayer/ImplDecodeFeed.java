@@ -11,6 +11,7 @@ package com.audionowdigital.android.openplayer;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.media.audiofx.Visualizer;
 import android.util.Log;
 
 import com.audionowdigital.android.openplayer.Player.DecoderType;
@@ -36,6 +37,11 @@ public class ImplDecodeFeed implements DecodeFeed {
      * The audio track to write the raw pcm bytes to
      */
     protected AudioTrack audioTrack;
+
+    /**
+     * The visualizer used to get waveform/fft for audio
+     */
+    private Visualizer visualizer;
 
     /**
      * The input stream to decode from
@@ -253,9 +259,6 @@ public class ImplDecodeFeed implements DecodeFeed {
 	            writtenPCMData += amountToRead;
 	            writtenMiliSeconds += convertBytesToMs(amountToRead);
 
-                if (decodeFeedListener!=null) {
-                    decodeFeedListener.onReadFeedData(pcmData, amountToRead);
-                }
 
 	            /*
 	             * The idea here is we are loosing some seconds when the packages can't be decoded (on seek, when jumping in the middle of a package), so the overall time count is behind the real position
@@ -293,6 +296,10 @@ public class ImplDecodeFeed implements DecodeFeed {
                 Log.e(TAG, "Audiotrack stop ex:"+ex.getMessage());
             }
             audioTrack = null;
+        }
+        if (visualizer!=null){
+            visualizer.setEnabled(false);
+            visualizer = null;
         }
     }
     /**
@@ -373,6 +380,27 @@ public class ImplDecodeFeed implements DecodeFeed {
             audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, (int) decodeStreamInfo.getSampleRate(), channelConfiguration,
                     AudioFormat.ENCODING_PCM_16BIT, minSize, AudioTrack.MODE_STREAM);
             audioTrack.play();
+            visualizer = new Visualizer(audioTrack.getAudioSessionId());
+            visualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
+            Visualizer.OnDataCaptureListener captureListener = new Visualizer.OnDataCaptureListener() {
+                @Override
+                public void onWaveFormDataCapture(Visualizer visualizer, byte[] waveform, int samplingRate) {
+                    //i don't care about wave form
+                }
+
+                @Override
+                public void onFftDataCapture(Visualizer visualizer, byte[] fft, int samplingRate) {
+                    //yes, this is what i'm looking for
+                    if (decodeFeedListener!=null) {
+                        //Log.d(TAG, "samplingRate="+visualizer.getCaptureSize());
+                        decodeFeedListener.onReadFeedData(fft, samplingRate);
+                    }
+
+                }
+            };
+            visualizer.setDataCaptureListener(captureListener,
+                    Visualizer.getMaxCaptureRate() / 2, false, true);
+            visualizer.setEnabled(true);
         } catch (Exception ex) {
             Log.e(TAG, "AudioTrack exception:" + ex.getMessage());
             lastError = ERR_AUDIO;
@@ -380,7 +408,7 @@ public class ImplDecodeFeed implements DecodeFeed {
         }
        
         if (playerState.get() == PlayerStates.READING_HEADER) {
-	        events.sendEvent(PlayerEvents.READY_TO_PLAY);
+	        events.sendEvent(PlayerEvents.READY_TO_PLAY, audioTrack.getAudioSessionId());
 	        //We're ready to starting to read actual content
 	        playerState.set(PlayerStates.READY_TO_PLAY);
         }
