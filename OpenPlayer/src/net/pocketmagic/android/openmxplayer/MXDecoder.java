@@ -17,6 +17,7 @@ import android.util.Log;
 
 import com.audionowdigital.android.openplayer.DecodeFeed;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -99,7 +100,11 @@ public class MXDecoder {
         }
         
         // create the actual decoder, using the mime to select
-        codec = MediaCodec.createDecoderByType(mime);
+        try {
+            codec = MediaCodec.createDecoderByType(mime);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         // check we have a valid codec instance
         if (codec == null) {
         	Log.e(TAG, "Can't start codec for mime:" + mime);
