@@ -8,11 +8,10 @@ project.archivesBaseName = 'open-player-android'
 android {
     compileSdkVersion 21
     buildToolsVersion '21.1.1'
-
-	defaultConfig {
-    		minSdkVersion 14
-    		targetSdkVersion 21
-	}
+    defaultConfig {
+        minSdkVersion 14
+        targetSdkVersion 21
+    }
 
 	sourceSets {
     		main {
