@@ -17,3 +17,4 @@ include 'services:webservice'
 */
 
 include ':OpenPlayer'
+include ':OpenPlayerDemo'
