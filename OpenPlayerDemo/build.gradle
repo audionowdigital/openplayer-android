@@ -16,10 +16,11 @@ android {
             jniLibs.srcDirs = ['libs']
         }
     }
-
-
 }
 
 dependencies {
+    compile 'org.roboguice:roboguice:3.0.1'
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    provided 'org.roboguice:roboblender:3.0.1'
     compile project(':OpenPlayer')
 }
