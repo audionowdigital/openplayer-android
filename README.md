@@ -34,7 +34,8 @@ In your project build.gradle add the following dependency and sync your project.
 ```
 dependencies {
     ...
-    compile 'com.audionowdigital:OpenPlayer:1.0.0'
+    compile 'com.audionowdigital:openplayer-android:1.0.0@aar'
+
 }
 ```
 
