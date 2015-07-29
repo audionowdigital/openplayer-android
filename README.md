@@ -16,29 +16,9 @@ OpenPlayer delivers great performance, by using native codec implementation. It 
 
 #Quick start
 
-First of all, you need to add OpenPlayer dependency to your project. If you are using Gradle please add this modifications:
+First of all, you need to add OpenPlayer to your project. If you are using Gradle, add the following line to your build.gradle file and sync your project.
 
-in your general build.gradle add our repository:
-
-```
-allprojects {
-    repositories {
-         ...
-         maven { url "http://dl.bintray.com/audionowdigital/maven" }
-    }
-}
-```
-
-In your project build.gradle add the following dependency and sync your project.
-
-```
-dependencies {
-    ...
-    compile 'com.audionowdigital:openplayer-android:1.0.0@aar'
-
-}
-```
-
+`compile 'com.audionowdigital:openplayer:1.0.0'`
 
 
 Using OpenPlayer to decode your media is very simple. 

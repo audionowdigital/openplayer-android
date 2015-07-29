@@ -1,12 +1,9 @@
-apply plugin: 'com.android.library'
-apply plugin: 'com.github.dcendents.android-maven'
-apply plugin: 'com.jfrog.bintray'
+apply plugin: 'android-library'
+apply plugin: 'maven'
 
 group = 'com.audionowdigital'
-version = '1.0.0'
-project.archivesBaseName = 'openplayer-android'
-def siteUrl = 'https://github.com/audionowdigital/openplayer-android'      // Homepage URL of the library
-def gitUrl = 'https://github.com/audionowdigital/openplayer-android.git'   // Git repository URL
+version = '1.0'
+project.archivesBaseName = 'open-player-android'
 
 android {
     compileSdkVersion 21
@@ -16,92 +13,24 @@ android {
         targetSdkVersion 21
     }
 
-    lintOptions {
-        abortOnError false
+	sourceSets {
+    		main {
+        		manifest.srcFile 'AndroidManifest.xml'
+        		java.srcDirs = ['src']
+        		res.srcDirs = ['res']
+			jni.srcDirs = []
+			jniLibs.srcDirs = ['libs']
+    		}
+	}
+}
+
+//sourceSets.main.jni.srcDirs = []
+
+uploadArchives {
+  repositories {
+    mavenDeployer {
+      repository url: 'file://' + new File(System.getProperty('user.home'), '.m2/repository').absolutePath
     }
-
-    sourceSets {
-        main {
-            manifest.srcFile 'AndroidManifest.xml'
-            java.srcDirs = ['src']
-            res.srcDirs = ['res']
-            jni.srcDirs = []
-            jniLibs.srcDirs = ['libs']
-        }
-    }
+  }
 }
-
-install {
-    repositories.mavenInstaller {
-        // This generates POM.xml with proper parameters
-        pom {
-            project {
-                packaging 'aar'
-
-                // Add your description here
-                name 'OpenPlayer is an Android library developed by AudioNow Digital, for playing audio in your mobile applications.'
-                url siteUrl
-
-                // Set your license
-                licenses {
-                    license {
-                        name 'The Apache Software License, Version 2.0'
-                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                    }
-                }
-                developers {
-                    developer {
-                        id 'audionowdigital'
-                        name 'AudioNowDigital'
-                        email 'audionowdigital@gmail.com'
-                    }
-                }
-                scm {
-                    connection gitUrl
-                    developerConnection gitUrl
-                    url siteUrl
-
-                }
-            }
-        }
-    }
-}
-
-task sourcesJar(type: Jar) {
-    from android.sourceSets.main.java.srcDirs
-    classifier = 'sources'
-}
-
-task javadoc(type: Javadoc) {
-    source = android.sourceSets.main.java.srcDirs
-    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
-}
-
-task javadocJar(type: Jar, dependsOn: javadoc) {
-    classifier = 'javadoc'
-    from javadoc.destinationDir
-}
-artifacts {
-    archives javadocJar
-    archives sourcesJar
-}
-
-if (project.rootProject.file('local.properties').exists()){
-    Properties properties = new Properties()
-    properties.load(project.rootProject.file('local.properties').newDataInputStream())
-
-    bintray {
-        user = properties.getProperty("bintray.user")
-        key = properties.getProperty("bintray.apikey")
-
-        configurations = ['archives']
-        pkg {
-            repo = "maven"
-            name = "openplayer-android"
-            websiteUrl = siteUrl
-            vcsUrl = gitUrl
-            licenses = ["Apache-2.0"]
-            publish = true
-        }
-    }
-}
+task install(dependsOn: uploadArchives)
