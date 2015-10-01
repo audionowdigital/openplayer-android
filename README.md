@@ -83,6 +83,7 @@ OpenPlayer is an event-based library. The events that will be fired in the decod
 #iOS Version
 OpenPlayer has also been developed for iOS platform. You can find it here:
 
+https://github.com/audionowdigital/openplayer-ios
 
 
 License
