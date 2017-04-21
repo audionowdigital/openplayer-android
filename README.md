@@ -1,4 +1,4 @@
-#OpenPlayer for Android
+# OpenPlayer for Android
 
 OpenPlayer is an Android library developed by AudioNow Digital, for playing audio in your mobile applications. You can use it for:
 
@@ -14,7 +14,7 @@ It delivers support for the following codecs:
 OpenPlayer delivers great performance, by using native codec implementation. It has been designed to decode OPUS and VORBIS content within an OGG Wrapper.
 
 
-#Quick start
+# Quick start
 
 First of all, you need to add OpenPlayer to your project. If you are using Gradle, add the following line to your build.gradle file and sync your project.
 
@@ -69,7 +69,7 @@ Using OpenPlayer to decode your media is very simple.
 
 **Note:** FILE_LENGTH_SECONDS is necessary for media files, for computing progress and allowing media seek. If you are decoding a live stream, you will need to use FILE_LENGTH_SECONDS = -1.
 
-#Player Events
+# Player Events
 OpenPlayer is an event-based library. The events that will be fired in the decoding process are the following:
 
 -  `READING_HEADER` - triggered when the library starts to read the OGG header of the stream
@@ -80,7 +80,7 @@ OpenPlayer is an event-based library. The events that will be fired in the decod
 -  `PLAYING_FINISHED` - player reached the end of the stream
 
 
-#iOS Version
+# iOS Version
 OpenPlayer has also been developed for iOS platform. You can find it here:
 
 https://github.com/audionowdigital/openplayer-ios
